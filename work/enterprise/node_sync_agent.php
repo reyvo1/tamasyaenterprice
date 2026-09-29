@@ -497,6 +497,13 @@ $daemon=$isCli && in_array('--daemon',$argv??[],true);
 $interval=max(5,min(300,(int)(getenv('NODE_SYNC_INTERVAL_SECONDS')?:10)));
 do {
     try {
+        // Snapshot timestamps arrive in the property's timezone, just like API
+        // reads. A standalone PDO session must not inherit the host's UTC (or
+        // another system timezone) when writing mirrored TIMESTAMP columns.
+        // Re-evaluate each daemon iteration so DST changes are respected.
+        $databaseTimezoneOffset=(new DateTimeImmutable('now',new DateTimeZone($agentTimezone)))->format('P');
+        $pdo->exec('SET time_zone = '.$pdo->quote($databaseTimezoneOffset));
+        $GLOBALS['tamasya_database_timezone_offset']=$databaseTimezoneOffset;
         $result=nodeSyncRunExclusive($pdo);
         // Guard scheduler shares the same engine as Web/cron. In daemon mode the
         // internal 60-second probe throttle + due intervals keep this cheap.

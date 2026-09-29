@@ -46,6 +46,7 @@ try:
  mirror=json.loads(r.stdout)['mirror'];check('Mirror actually transfers tables and rows',not mirror['skipped'] and mirror['tables']>0 and mirror['rows']>0)
  check('Standby receives source and removes stale fixture',sql("SELECT GROUP_CONCAT(id ORDER BY id) FROM `tamasya_ha_test_b_"+suffix+"`.public_room_types WHERE id IN ('ha-source','ha-stale')")=='ha-source')
  check('Optional rate data copied and stale standby data removed',sql("SELECT GROUP_CONCAT(id ORDER BY id) FROM `tamasya_ha_test_b_"+suffix+"`.growth_rate_plans WHERE id IN ('ha-source','ha-stale')")=='ha-source')
+ check('Mirror preserves absolute transaction timestamps across host timezones',sql("SELECT MAX(createdAt) FROM `tamasya_ha_test_a_"+suffix+"`.transactions")==sql("SELECT MAX(createdAt) FROM `tamasya_ha_test_b_"+suffix+"`.transactions"))
  for table in ['growth_folios','growth_folio_charge_allocations','growth_crm_campaign_recipients','growth_supplier_invoice_payments','growth_interproperty_transfers']:
   ca=int(sql('SELECT COUNT(*) FROM `tamasya_ha_test_a_'+suffix+'`.'+table));cb=int(sql('SELECT COUNT(*) FROM `tamasya_ha_test_b_'+suffix+'`.'+table))
   check('Optional mirror count '+table,ca==cb and (ca>0 or table=='growth_interproperty_transfers'))
