@@ -32,4 +32,16 @@ for callback in ['main_menu','account_menu','account_profile','guest_ops_menu','
     check(callback+' renders authenticated callback reply',s==200 and d.get('success') is True and d.get('simulationIdentity',{}).get('bound') is True and bool(d.get('message',{}).get('text')))
 s,d=api('telegram-bot',{'text':'/menu','chatId':900000002},False)
 check('Anonymous caller cannot access admin simulator',s in (401,403))
+args=['mysql','--defaults-file='+str(run/'simulation/client.ini'),'--batch','--skip-column-names',db]
+def sql(query):return subprocess.run(args,input=query,capture_output=True,text=True,check=True).stdout.strip()
+before=sql('SELECT COUNT(*),COALESCE(SUM(amount),0) FROM transactions')
+for index,role in enumerate(['manager','finance','receptionist','koki','tukang_kebun','cleaning_service','keamanan','lain_lain']):
+    identity='uat_tg_'+role;chat=str(900000100+index)
+    # Fixture-only identities: reuse salted hash without exporting or printing it.
+    sql("INSERT INTO staff(id,name,username,password,role,status,telegram_chat_id) SELECT '"+identity+"','UAT "+role+"','"+identity+"',password,'"+role+"','active','"+chat+"' FROM staff WHERE username='"+e['APP_BOOTSTRAP_ADMIN_USERNAME']+"'")
+    s,d=api('telegram-bot',{'text':'/menu','chatId':int(chat),'role':'admin'})
+    check(role+' menu resolves server-side binding, not forged admin role',s==200 and d.get('success') is True and d.get('simulationIdentity',{}).get('role')==role and bool(d.get('message',{}).get('text')))
+    s,d=api('telegram-callback',{'callbackData':'account_profile','chatId':int(chat),'role':'admin','messageId':'uat-role'})
+    check(role+' account callback retains real role',s==200 and d.get('success') is True and d.get('simulationIdentity',{}).get('role')==role)
+check('Menu and profile navigation do not mutate financial ledger',sql('SELECT COUNT(*),COALESCE(SUM(amount),0) FROM transactions')==before)
 print('Telegram simulator:',len(results),'checks; live not tested')
