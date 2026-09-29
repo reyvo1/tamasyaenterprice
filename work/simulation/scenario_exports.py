@@ -1,0 +1,25 @@
+import scenario_extended as e
+from scenario_extended import *
+import io,zipfile,xml.etree.ElementTree as ET
+
+e.logname='report-export-results.json'
+_,catalog=request('canonical-report-types')
+headers={'Authorization':'Bearer '+json.loads((base/'session.json').read_text())['token'],'X-Device-ID':'simulation-browser-01','Origin':'http://127.0.0.1:38184'}
+for typ in catalog['types']:
+ _,snapshot=request('canonical-report&type='+typ+'&from=2026-01-01&to=2026-12-31')
+ for fmt in ['csv','xlsx','pdf']:
+  req=urllib.request.Request('http://127.0.0.1:38184/api.php?action=canonical-report&type='+typ+'&from=2026-01-01&to=2026-12-31&format='+fmt,headers=headers)
+  try:r=urllib.request.urlopen(req,timeout=90)
+  except urllib.error.HTTPError as er:r=er
+  raw=r.read();ok=r.status==200 and r.headers.get('X-Tamasya-Report-SHA256')==snapshot['meta']['checksumSha256']
+  try:
+   if fmt=='xlsx':
+    with zipfile.ZipFile(io.BytesIO(raw)) as z:
+     ok=ok and z.testzip() is None and 'xl/workbook.xml' in z.namelist()
+     for n in z.namelist():
+      if n.endswith(('.xml','.rels')):ET.fromstring(z.read(n))
+   elif fmt=='pdf':ok=ok and raw.startswith(b'%PDF-') and b'%%EOF' in raw[-50:] and b'xref' in raw
+   else:ok=ok and 'Report ID' in raw.decode('utf-8-sig')
+  except Exception as ex:ok=False
+  check(typ+' '+fmt+' structure and snapshot identity',ok,{'httpStatus':r.status,'bytes':len(raw)})
+print('RESULT',sum(x['pass'] for x in e.results),'/',len(e.results))

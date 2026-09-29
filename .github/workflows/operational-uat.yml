@@ -1,0 +1,50 @@
+name: Operational UAT evidence (coverage tracked separately)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: operational-uat-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  automated-evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240
+        with:
+          php-version: '8.5'
+          extensions: pdo_mysql, curl, mbstring, xml, zip
+          coverage: none
+      - name: Install isolated-test dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y mysql-server mysql-client python3-cryptography python3-yaml
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Enumerate coverage (not a pass claim)
+        run: python3 uat/inventory.py
+      - name: Units, financial/API integrations, browser and Telegram simulator
+        run: python3 -u uat/ci.py
+      - name: Publish explicit completeness status
+        if: always()
+        run: |
+          if [ -f artifacts/coverage-summary.md ]; then
+            cat artifacts/coverage-summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo 'Full operational UAT is NOT COMPLETE until every scenario has reviewed behavioral evidence; Telegram live is blocked.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: sanitized-uat-evidence
+          path: artifacts/
+          retention-days: 14
+          if-no-files-found: error
+          include-hidden-files: false
