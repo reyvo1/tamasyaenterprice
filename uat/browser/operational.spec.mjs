@@ -38,7 +38,7 @@ for(const file of ['growth-suite.html','enterprise-suite.html']){
     fs.writeFileSync(`artifacts/browser-${info.project.name}-${file}.json`,JSON.stringify(evidence,null,2));
   });
 }
-test('Enterprise purchase request: browser submit persists draft',async({page,request},info)=>{
+test('Enterprise purchase request: draft, submit, approval and reload',async({page,request},info)=>{
   await page.goto('/enterprise-suite.html');await expect(page.locator('#loading')).toBeHidden();
   await page.locator('[data-tab="ap"]').click();
   const item=`UAT browser ${info.project.name} ${Date.now()}`;
@@ -49,5 +49,15 @@ test('Enterprise purchase request: browser submit persists draft',async({page,re
   expect(d.data.request.id).toBeTruthy();expect(d.data.request.status).toBe('draft');
   await page.reload();await expect(page.locator('#loading')).toBeHidden();await page.locator('[data-tab="ap"]').click();
   await expect(page.locator('#pr-list')).toContainText(d.data.request.request_number || d.data.request.pr_number || 'draft');
-  fs.writeFileSync(`artifacts/browser-pr-${info.project.name}.json`,JSON.stringify({test:'browser PR submit and reload',pass:true,requestId:d.data.request.id,scope:'PR draft only; approval/posting covered separately via API, not claimed as UI-tested'}));
+  for(const [button,status] of [['Submit','submitted'],['Approve','approved']]){
+    const row=page.locator('#pr-list tr').filter({hasText:d.data.request.pr_number});
+    const posted=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('pr-status'));
+    await row.getByRole('button',{name:button,exact:true}).click();
+    const r=await posted;expect(r.status()).toBe(200);expect((await r.json()).success).toBe(true);
+    await expect(page.locator('#loading')).toBeHidden();
+    await expect(page.locator('#pr-list tr').filter({hasText:d.data.request.pr_number})).toContainText(status);
+  }
+  await page.reload();await expect(page.locator('#loading')).toBeHidden();await page.locator('[data-tab="ap"]').click();
+  await expect(page.locator('#pr-list tr').filter({hasText:d.data.request.pr_number})).toContainText('approved');
+  fs.writeFileSync(`artifacts/browser-pr-${info.project.name}.json`,JSON.stringify({test:'browser PR draft, submit, approval and reload',pass:true,requestId:d.data.request.id,scope:'PR lifecycle through approval; downstream PO/AP not claimed as UI-tested'}));
 });
