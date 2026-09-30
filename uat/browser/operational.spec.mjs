@@ -187,8 +187,12 @@ test('Enterprise procurement: PR approval, PO approval and GRN posting persist',
   await expect(page.locator('#loading')).toBeHidden();
   await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toContainText('draft');
 
-  await page.goto('/growth-suite.html');await expect(page.locator('#loading')).toBeHidden();
+  const growthBoot=page.waitForResponse(r=>r.url().includes('action=growth-suite')&&r.url().includes('command=bootstrap'));
+  await page.goto('/growth-suite.html');
+  const growthResponse=await growthBoot;expect(growthResponse.status()).toBe(200);
+  await expect(page.locator('#loading')).toBeHidden();
   await page.locator('[data-tab="procurement"]').click();
+  await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toBeVisible();
   for(const [button,status] of [['Submit','submitted'],['Approve','approved']]){
     const posted=page.waitForResponse(r=>r.url().includes('action=growth-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('po-status'));
     await page.locator('#po-list tr').filter({hasText:po.po_number}).getByRole('button',{name:button,exact:true}).click();
