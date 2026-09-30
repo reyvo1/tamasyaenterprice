@@ -12,7 +12,7 @@ def command(args):
         # Publish code locations/type only, never exception payloads or raw responses.
         frames=re.findall(r'File "[^"]*/([^/"\n]+)", line (\d+)',p.stdout+p.stderr)
         types=re.findall(r'^([A-Za-z]+(?:Error|Exception)):',p.stdout+p.stderr,re.M)
-        diagnostic={'stage':Path(args[1]).name,'exitCode':p.returncode,'frames':frames[-8:],'exceptionTypes':types[-5:]}
+        diagnostic={'stage':Path(args[1]).name,'exitCode':p.returncode,'frames':frames[-25:],'exceptionTypes':types[-10:]}
         (out/'failure-location.json').write_text(json.dumps(diagnostic,indent=2));print(json.dumps(diagnostic))
     if p.returncode:raise RuntimeError('Fixture step failed; see sanitized stage report, not private raw logs.')
 before=set(work.glob('release-local-*'));run=None
@@ -34,6 +34,18 @@ finally:
             summary.append({'suite':p.stem,'passed':sum(x['pass'] for x in safe),'failed':sum(not x['pass'] for x in safe)})
         for name in ['gate-progress.json','enterprise-gate-progress.json']:
             if (run/name).exists():(out/name).write_text((run/name).read_text())
+        diagnostics=[]
+        for log in list((sim/'logs').glob('*.txt'))+list((run/'simulation-growth/logs').glob('*.log')):
+            text=log.read_text(errors='replace')
+            signals={key:len(re.findall(pattern,text,re.I)) for key,pattern in {
+                'connection_refused':'Connection refused','connection_reset':'Connection reset',
+                'timed_out':'timed out','php_fatal':'Fatal error','php_memory':'Allowed memory size',
+                'segmentation_fault':'Segmentation fault','address_in_use':'Address already in use',
+                'sql_error':'SQLSTATE','http_500':r'\[500\]',
+            }.items()}
+            frames=re.findall(r'File "[^"\n]*/([^/"\n]+)", line (\d+)',text)
+            if any(signals.values()) or frames:diagnostics.append({'log':log.name,'signals':signals,'frames':frames[-25:]})
+        (out/'diagnostic-signals.json').write_text(json.dumps(diagnostics,indent=2))
         (out/'integration-summary.json').write_text(json.dumps(summary,indent=2))
         print('Assertions recorded:',sum(x['passed'] for x in summary),'passed;',sum(x['failed'] for x in summary),'failed')
     # Unit output is unnecessary for public artifacts; retain names/counts only.
