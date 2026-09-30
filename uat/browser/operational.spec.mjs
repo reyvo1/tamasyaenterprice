@@ -194,14 +194,20 @@ test('Enterprise procurement: PR, PO, GRN and supplier invoice posting persist',
   await page.locator('[data-tab="procurement"]').click();
   await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toBeVisible();
   for(const [button,status] of [['Submit','submitted'],['Approve','approved']]){
+    const action=page.locator('#po-list tr').filter({hasText:po.po_number}).getByRole('button',{name:button,exact:true});
+    await expect(action).toBeVisible();await expect(action).toBeEnabled();
+    await expect(page.locator('#loading')).toBeHidden();
+    await action.evaluate(el=>el.scrollIntoView({block:'center',inline:'center'}));
+    fs.writeFileSync(`artifacts/browser-po-stage-${info.project.name}.json`,JSON.stringify({stage:`before-${status}`,buttonVisible:await action.isVisible(),buttonEnabled:await action.isEnabled(),loadingHidden:await page.locator('#loading').isHidden()}));
     const posted=page.waitForResponse(r=>r.url().includes('action=growth-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('po-status'));
-    await page.locator('#po-list tr').filter({hasText:po.po_number}).getByRole('button',{name:button,exact:true}).click();
+    await action.click({timeout:15000});
     const update=await posted,body=await update.json();
     expect(update.status()).toBe(200);expect(body.success).toBe(true);expect(body.data.status).toBe(status);
     await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toContainText(status);
     await expect(page.locator('#po-detail')).toContainText(po.po_number);
     await expect(page.locator('#po-detail')).toContainText(status);
     await expect(page.locator('#loading')).toBeHidden();
+    fs.writeFileSync(`artifacts/browser-po-stage-${info.project.name}.json`,JSON.stringify({stage:`after-${status}`,httpStatus:update.status(),detailComplete:true,loadingHidden:true}));
   }
   await page.reload();await expect(page.locator('#loading')).toBeHidden();await page.locator('[data-tab="procurement"]').click();
   await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toContainText('approved');
