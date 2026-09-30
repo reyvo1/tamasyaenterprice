@@ -100,16 +100,19 @@ for file in ('growth-suite.html', 'enterprise-suite.html'):
         credit('html-control', file, f'button[data-tab="{tab}"]', 'NAVIGATION_VERIFIED', title)
 
 report['fullOperationalUatPassed'] = False
+browser_outcomes = Counter(row['status'] for row in rows)
 report['evidenceReconciliation'] = {'browserTests': len(rows),
-    'browserPassed': sum(row['status'] == 'passed' for row in rows),
-    'browserSkipped': sum(row['status'] == 'skipped' for row in rows),
-    'browserFailed': sum(row['status'] == 'failed' for row in rows),
+    'browserPassed': browser_outcomes['passed'],
+    'browserSkipped': browser_outcomes['skipped'],
+    'browserUnsuccessful': sum(count for status, count in browser_outcomes.items() if status not in ('passed', 'skipped')),
+    'browserOutcomes': dict(sorted(browser_outcomes.items())),
     'missingMappedInventoryItems': sorted(set(missing))}
 counts = Counter((item['kind'], item['status']) for item in items)
 lines = ['# UAT coverage — NOT COMPLETE', '', report['scope'], '',
          f"Browser: {report['evidenceReconciliation']['browserPassed']}/{len(rows)} passed; "
          f"{report['evidenceReconciliation']['browserSkipped']} skipped; "
-         f"{report['evidenceReconciliation']['browserFailed']} failed.", '']
+         f"{report['evidenceReconciliation']['browserUnsuccessful']} unsuccessful "
+         f"({', '.join(f'{status}={count}' for status, count in sorted(browser_outcomes.items()) if status not in ('passed', 'skipped')) or 'none'}).", '']
 for kind in sorted({item['kind'] for item in items}):
     breakdown = ', '.join(f'{status}={count}' for (name, status), count in sorted(counts.items()) if name == kind)
     lines.append(f'- {kind}: {breakdown}')
