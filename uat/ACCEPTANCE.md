@@ -5,7 +5,9 @@ The owner requested every menu, domain/subdomain, button and Telegram path. That
 ## Evidence levels
 
 - INVENTORIED: control/route discovered; no behavior proven.
+- NOT_TESTED in the generated inventory means no item-specific evidence has been credited, not proof that no other suite touches the code.
 - NAVIGATION_VERIFIED: clicked and expected panel visible; not a mutation test.
+- UI_RESULT_VERIFIED: UI action produced an asserted result; no persisted business mutation is claimed.
 - API_VERIFIED: request/state invariants proved; not a browser click test.
 - BEHAVIOR_VERIFIED: identified UI control, preconditions, actual interaction, business outcome and persisted reload verified.
 - BLOCKED_LIVE: real external service/physical device unavailable; simulator cannot close it.

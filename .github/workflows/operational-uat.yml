@@ -33,6 +33,9 @@ jobs:
         run: python3 uat/inventory.py
       - name: Units, financial/API integrations, browser and Telegram simulator
         run: python3 -u uat/ci.py
+      - name: Reconcile passing browser evidence to inventory
+        if: always()
+        run: python3 uat/reconcile.py
       - name: Publish explicit completeness status
         if: always()
         run: |
