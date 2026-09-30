@@ -268,6 +268,45 @@ test('POS cash sale and void: receipt, history and stock reversal persist',async
   await expect(page.locator('#sales-table tr').filter({hasText:receipt})).toContainText('voided');
   fs.writeFileSync(`artifacts/browser-pos-sale-${info.project.name}.json`,JSON.stringify({test:'POS cash sale, receipt, history and void stock reversal',pass:true,scope:'No external payment, physical printer or room delivery claimed'}));
 });
+test('POS stock adjustment: add, subtract and persisted reload',async({page},info)=>{
+  await page.goto('/pos.html');
+  await expect(page.locator('#product-grid [data-product]').first()).toBeVisible();
+  await page.locator('[data-view="products"]').click();
+  await page.locator('#add-product-btn').click();
+  const sku=`UAT-STOCK-${info.project.name}-${Date.now()}`;
+  await page.locator('#product-sku').fill(sku);
+  await page.locator('#product-name').fill(`UAT stock product ${sku}`);
+  await page.locator('#product-cost').fill('500');
+  await page.locator('#product-price').fill('1000');
+  await page.locator('#product-initial-stock').fill('5');
+  const created=page.waitForResponse(r=>r.url().includes('action=pos-product-save')&&r.request().method()==='POST');
+  await page.locator('#save-product').click();
+  expect((await created).status()).toBe(200);
+  await expect(page.locator('#product-dialog')).toBeHidden();
+  await page.locator('[data-view="stock"]').click();
+  const adjust=async(delta,reason,expected)=>{
+    const option=page.locator('#stock-product option').filter({hasText:sku});
+    const productId=await option.getAttribute('value');
+    expect(productId).toBeTruthy();
+    await page.locator('#stock-product').selectOption(productId);
+    await page.locator('#stock-delta').fill(String(delta));
+    await page.locator('#stock-reason').fill(reason);
+    const posted=page.waitForResponse(r=>r.url().includes('action=pos-stock-adjust')&&r.request().method()==='POST');
+    await page.locator('#stock-form button[type="submit"]').click();
+    const response=await posted;
+    expect(response.status()).toBe(200);
+    expect((await response.json()).success).toBe(true);
+    await page.locator('[data-view="products"]').click();
+    await expect(page.locator('#products-table tr').filter({hasText:sku}).locator('td').nth(4)).toContainText(`${expected} pcs`);
+    await page.locator('[data-view="stock"]').click();
+  };
+  await adjust(2,'UAT stock addition',7);
+  await adjust(-1,'UAT stock reduction',6);
+  await page.reload();
+  await page.locator('[data-view="products"]').click();
+  await expect(page.locator('#products-table tr').filter({hasText:sku}).locator('td').nth(4)).toContainText('6 pcs');
+  fs.writeFileSync(`artifacts/browser-pos-stock-${info.project.name}.json`,JSON.stringify({test:'POS positive/negative stock adjustment and persisted balance',pass:true,scope:'Stock audit and permission matrix not yet claimed as browser-tested'}));
+});
 test('PMS interactive login: credentials, session and reload',async({browser},info)=>{
   const mobile=info.project.name==='mobile';
   const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:1000},

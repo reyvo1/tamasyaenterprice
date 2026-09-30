@@ -71,6 +71,9 @@ controls('pos.html', sale, 'BEHAVIOR_VERIFIED',
          ('#checkout-btn', '#payment-method', '#product-price', '#product-cost',
           '#product-initial-stock'))
 controls('pos.html', sale, 'UI_RESULT_VERIFIED', ('#load-sales', '#close-receipt'))
+stock = 'POS stock adjustment: add, subtract and persisted reload'
+controls('pos.html', stock, 'BEHAVIOR_VERIFIED',
+         ('#stock-form', '#stock-product', '#stock-delta', '#stock-reason'))
 
 pr = 'Enterprise purchase request: draft, submit, approval and reload'
 controls('enterprise-suite.html', pr, 'BEHAVIOR_VERIFIED',
