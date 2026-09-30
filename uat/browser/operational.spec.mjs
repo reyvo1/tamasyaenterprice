@@ -265,24 +265,29 @@ test('Enterprise procurement: PR, PO, GRN and supplier invoice posting persist',
   fs.writeFileSync(`artifacts/browser-pr-${info.project.name}.json`,JSON.stringify({test:'browser PR-to-PO-to-GRN-to-supplier-invoice lifecycle',pass:true,requestId:d.data.request.id,poId:po.id,grnId:grn.id,invoiceId:invoice.id,scope:'PR, PO, GRN and invoice accrual UI lifecycle in fixture; no AP payment or linked physical stock mutation claimed'}));
 });
 
-test('Enterprise CRM: consent, loyalty points and voucher depend on each other and persist',async({page,request},info)=>{
-  // The guest profile is a PRECONDITION created through the API, because no UI
-  // surface creates one. Only the search/select/consent/points/voucher path is
-  // claimed as UI behaviour below.
-  const login=await request.post('/api.php?action=login',{headers:{Origin:base,'X-Device-ID':'uat-browser'},
-    data:{username:env.APP_BOOTSTRAP_ADMIN_USERNAME,password:env.APP_BOOTSTRAP_ADMIN_PASSWORD}});
-  expect(login.status()).toBe(200);
-  const {token}=await login.json();expect(token).toBeTruthy();
-  const stamp=`UATCRM-${info.project.name}-${Date.now()}`;
-  const guestId=`uat_crm_${info.project.name}_${Date.now()}`;
-  const auth={Origin:base,'X-Device-ID':'uat-browser',Authorization:'Bearer '+token,'Content-Type':'application/json'};
-  const seeded=await request.post('/api.php?action=operations-center',{headers:{...auth,'X-Tamasya-Operation-ID':`seed-${stamp}`},
-    data:{command:'guest-profile-save',operationId:`seed-${stamp}`,id:guestId,name:`${stamp} Guest`,email:`${stamp.toLowerCase()}@example.invalid`}});
-  expect(seeded.status()).toBe(200);
-  expect((await seeded.json()).success).toBe(true);
-
+test('Enterprise CRM: consent, loyalty points and voucher depend on each other and persist',async({page},info)=>{
   await page.goto('/enterprise-suite.html');
   await expect(page.locator('#loading')).toBeHidden();
+
+  // The guest profile is a PRECONDITION created through the API, because no UI
+  // creates one. It must be seeded from inside the page: `issueSessionTokens()`
+  // revokes every existing session for the same staff AND device, so a second
+  // login on this device would invalidate the token the suite is already
+  // running with and turn every later request into a 401.
+  const stamp=`UATCRM-${info.project.name}-${Date.now()}`;
+  const guestId=`uat_crm_${info.project.name}_${Date.now()}`;
+  const operationId=`uat-crm-seed-${info.project.name}-${Date.now()}`;
+  const seeded=await page.evaluate(async payload=>{
+    const response=await fetch('/api.php?action=operations-center',{method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json',
+        'Authorization':'Bearer '+sessionStorage.getItem('hotel_session_token'),
+        'X-Device-ID':'uat-browser','X-App-Version':'V137','X-Tamasya-Operation-ID':payload.operationId},
+      body:JSON.stringify(payload.body)});
+    return {status:response.status,body:await response.json().catch(()=>null)};
+  },{operationId,body:{command:'guest-profile-save',operationId,id:guestId,name:`${stamp} Guest`,email:`${stamp.toLowerCase()}@example.invalid`}});
+  expect(seeded.status).toBe(200);
+  expect(seeded.body?.success).toBe(true);
+
   await page.locator('[data-tab="crm"]').click();
   await expect(page.locator('#tab-crm')).toBeVisible();
 

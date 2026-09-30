@@ -25,6 +25,28 @@ in both directions: issuance is refused before consent exists and refused again
 after revocation, while the same call succeeds while the consent is active. The
 refusal must leave the voucher list empty and must not mutate the loyalty balance.
 
+## One active session per staff and device
+
+`issueSessionTokens()` revokes every existing session for the same staff AND
+device before issuing a new one. The first CRM scenario logged in a second time
+from the suite's `X-Device-ID: uat-browser`, which silently invalidated the token
+`beforeEach` had just placed in `sessionStorage`; the page then received
+`401 Unauthorized` on its first CRM call. The application behaved correctly — one
+live session per device is intended. The scenario now seeds its guest
+precondition from inside the page with the token the suite already holds. Any
+future scenario that needs its own credentials must use a distinct `X-Device-ID`
+rather than a second login on the shared one.
+
+## Mobile PO approval is still timing out intermittently
+
+Run 36736174277 failed the procurement scenario on the **mobile** project with a
+timeout while tapping Submit/Approve, even though 36722254327 passed the identical
+code two hours earlier. The scenario runs before the CRM one in file order, so the
+CRM change cannot have caused it; this is pre-existing flakiness in the mobile
+approval path, not a regression from that commit. The scenario is left as it is —
+no retry, timeout bump or assertion was weakened to hide it — and the failure is
+recorded here until a run proves it stable across repeated runs.
+
 ## Acceptance gap
 
 Current browser and Telegram scenarios cover only part of the requested operational surface. See `ACCEPTANCE.md` and generated coverage inventory. Source inventory counts are not passing-test counts. Telegram live remains unavailable by the owner's explicit simulator-first choice.
