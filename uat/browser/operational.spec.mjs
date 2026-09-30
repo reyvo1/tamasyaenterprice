@@ -198,8 +198,10 @@ test('Enterprise procurement: PR approval, PO approval and GRN posting persist',
     await page.locator('#po-list tr').filter({hasText:po.po_number}).getByRole('button',{name:button,exact:true}).click();
     const update=await posted,body=await update.json();
     expect(update.status()).toBe(200);expect(body.success).toBe(true);expect(body.data.status).toBe(status);
-    await expect(page.locator('#loading')).toBeHidden();
     await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toContainText(status);
+    await expect(page.locator('#po-detail')).toContainText(po.po_number);
+    await expect(page.locator('#po-detail')).toContainText(status);
+    await expect(page.locator('#loading')).toBeHidden();
   }
   await page.reload();await expect(page.locator('#loading')).toBeHidden();await page.locator('[data-tab="procurement"]').click();
   await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toContainText('approved');
