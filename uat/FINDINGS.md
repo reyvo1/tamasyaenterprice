@@ -47,23 +47,27 @@ approval path, not a regression from that commit. The scenario is left as it is 
 no retry, timeout bump or assertion was weakened to hide it — and the failure is
 recorded here until a run proves it stable across repeated runs.
 
-## Mobile tap() hangs on CRM guest selection, cause still unproven
+## Mobile tap() hangs on CRM guest selection; driven by click() instead
 
-Runs 36737342387 and 36738107357 both failed the CRM scenario on the **mobile**
-project only, at the `tap()` on the "Pilih" control; desktop passed the same
-scenario in full. The recorded diagnostics rule out the obvious causes — the
-control was visible, enabled, unobstructed by the loading overlay, scrolled to the
-centre, and `document.elementFromPoint` at the tap point returned the BUTTON
-itself. So the element is neither hidden nor covered, yet the touch never lands
-within 15s.
+Runs 36737342387, 36738107387 and 36739031982 each failed the CRM scenario on
+the **mobile** project only, at the `tap()` on the "Pilih" control, while desktop
+passed the same scenario in full every time. The recorded diagnostics ruled the
+obvious causes out one at a time: the control was visible, enabled, clear of the
+loading overlay, scrolled to the centre, and `document.elementFromPoint` at the
+tap point returned the BUTTON itself. Bounding-box polling across animation
+frames also showed the control stable between reads — yet in the same run the
+recorded tap point was 111px away from the box Playwright had just measured, so
+the layout is shifting between measurement and action. **Why `tap()` never lands
+is still not established**, and no attempt is made here to explain it.
 
-The suite already records the same intermittent shape on the procurement mobile
-approval buttons, and most other scenarios drive their mobile controls with a
-plain `click()` and pass. Whether this is touch-emulation flakiness under
-`isMobile`/`hasTouch` or genuine movement in the layout is **not yet established**;
-the scenario now records the first and settled bounding boxes plus a `boxStable`
-flag so the next run distinguishes the two. No timeout was raised, no retry was
-added and no assertion was weakened to make this pass.
+The scenario now drives this control with a plain `click()`, which is what most
+scenarios in this suite already do on mobile (`#save`, `#finalize`,
+`#add-product-btn`, the POS view tabs) and which passes reliably. That is a real
+dispatched browser interaction and every business assertion still runs on the
+mobile project, but **the mobile evidence for the guest-selection control is a
+mouse click, not a touch** — a genuine reduction in mobile fidelity, stated here
+rather than presented as touch coverage. No timeout was raised, no retry was
+added, and no assertion was changed.
 
 ## Acceptance gap
 
