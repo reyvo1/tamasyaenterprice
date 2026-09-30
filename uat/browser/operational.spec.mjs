@@ -62,6 +62,7 @@ test('Property setup: save, refresh, persisted reload and restore',async({page},
   const name=page.locator('#propertyName');
   await expect(name).toHaveValue(/.+/);
   const original=await name.inputValue();
+  await expect(page.locator('#ready-text')).toContainText('Property sudah READY');
   const uatName=`UAT property ${info.project.name} ${Date.now()}`;
   const save=async value=>{
     await name.fill(value);
@@ -80,9 +81,16 @@ test('Property setup: save, refresh, persisted reload and restore',async({page},
   expect((await refreshed).status()).toBe(200);
   await expect(name).toHaveValue(uatName);
   await save(original);
+  await expect(page.locator('#finalize')).toBeEnabled();
+  const finalized=page.waitForResponse(r=>r.url().includes('action=property-setup')&&r.url().includes('command=finalize')&&r.request().method()==='POST');
+  await page.locator('#finalize').click();
+  const finalResponse=await finalized;
+  expect(finalResponse.status()).toBe(200);
+  expect((await finalResponse.json()).success).toBe(true);
   await page.reload();
   await expect(name).toHaveValue(original);
-  fs.writeFileSync(`artifacts/browser-setup-${info.project.name}.json`,JSON.stringify({test:'property settings save, refresh, persisted reload and restore',pass:true,scope:'Property name only; finalize and other setup controls not claimed'}));
+  await expect(page.locator('#ready-text')).toContainText('Property sudah READY');
+  fs.writeFileSync(`artifacts/browser-setup-${info.project.name}.json`,JSON.stringify({test:'property settings save, refresh, persisted reload, restore and re-finalize',pass:true,scope:'Property name and READY transition only; other setup controls not claimed'}));
 });
 test('Enterprise purchase request: draft, submit, approval and reload',async({page,request},info)=>{
   await page.goto('/enterprise-suite.html');await expect(page.locator('#loading')).toBeHidden();
