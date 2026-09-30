@@ -28,6 +28,8 @@ The generated static inventory is a lower-bound discovery tool, not an exhaustiv
 
 All ten HTML entrypoints, PHP admin tools, public web forms, compiled React routes, POS, staff workflows, HQ and every dynamic control must receive reviewed scenario mapping before acceptance. DNS subdomains, HTTPS routing and production deployment remain environment-specific tests.
 
+The Enterprise CRM panel is browser-tested through consent, loyalty and voucher behaviour: guest search and selection, append-only consent grant and revoke, a positive loyalty adjustment, a rejected over-withdrawal that must not move the balance, a consent-gated voucher issue that is refused both before consent exists and after revocation, and a full reload that must return the same balance, consent count and voucher. The guest profile itself is seeded through the API as a precondition because no UI creates one. Voucher redemption, campaign drafting/send, health rules, provider adapters and role-denial paths on that panel remain untested.
+
 ## Safety
 
 Fixtures must be synthetic, disposable, isolated and incapable of sending messages/payments to live recipients. Never weaken assertions to make CI green, count skipped/disabled tests as passing, or replay ambiguous mutations with a new operation ID. Raw traces/logs/session dumps are private and must not be uploaded to this public repository.

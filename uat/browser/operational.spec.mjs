@@ -265,6 +265,138 @@ test('Enterprise procurement: PR, PO, GRN and supplier invoice posting persist',
   fs.writeFileSync(`artifacts/browser-pr-${info.project.name}.json`,JSON.stringify({test:'browser PR-to-PO-to-GRN-to-supplier-invoice lifecycle',pass:true,requestId:d.data.request.id,poId:po.id,grnId:grn.id,invoiceId:invoice.id,scope:'PR, PO, GRN and invoice accrual UI lifecycle in fixture; no AP payment or linked physical stock mutation claimed'}));
 });
 
+test('Enterprise CRM: consent, loyalty points and voucher depend on each other and persist',async({page,request},info)=>{
+  // The guest profile is a PRECONDITION created through the API, because no UI
+  // surface creates one. Only the search/select/consent/points/voucher path is
+  // claimed as UI behaviour below.
+  const login=await request.post('/api.php?action=login',{headers:{Origin:base,'X-Device-ID':'uat-browser'},
+    data:{username:env.APP_BOOTSTRAP_ADMIN_USERNAME,password:env.APP_BOOTSTRAP_ADMIN_PASSWORD}});
+  expect(login.status()).toBe(200);
+  const {token}=await login.json();expect(token).toBeTruthy();
+  const stamp=`UATCRM-${info.project.name}-${Date.now()}`;
+  const guestId=`uat_crm_${info.project.name}_${Date.now()}`;
+  const auth={Origin:base,'X-Device-ID':'uat-browser',Authorization:'Bearer '+token,'Content-Type':'application/json'};
+  const seeded=await request.post('/api.php?action=operations-center',{headers:{...auth,'X-Tamasya-Operation-ID':`seed-${stamp}`},
+    data:{command:'guest-profile-save',operationId:`seed-${stamp}`,id:guestId,name:`${stamp} Guest`,email:`${stamp.toLowerCase()}@example.invalid`}});
+  expect(seeded.status()).toBe(200);
+  expect((await seeded.json()).success).toBe(true);
+
+  await page.goto('/enterprise-suite.html');
+  await expect(page.locator('#loading')).toBeHidden();
+  await page.locator('[data-tab="crm"]').click();
+  await expect(page.locator('#tab-crm')).toBeVisible();
+
+  // Search, then pick the exact seeded row. The result table is rendered by the
+  // server from guest-search, so the row existing proves the query worked.
+  await page.locator('#guest-q').fill(`${stamp} Guest`);
+  const searched=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.url().includes('command=guest-search'));
+  await page.locator('#guest-search').click();
+  const searchResponse=await searched;
+  const searchBody=await searchResponse.json().catch(()=>null);
+  fs.writeFileSync(`artifacts/browser-crm-diagnostic-${info.project.name}.json`,JSON.stringify({stage:'guest-search',httpStatus:searchResponse.status(),success:searchBody?.success===true,error:searchBody?String(searchBody.error??'').slice(0,200):null,rows:Array.isArray(searchBody?.data)?searchBody.data.length:null,query:searchResponse.url().split('&').filter(x=>x.startsWith('q=')).join('')}));
+  expect(searchResponse.status()).toBe(200);
+  const row=page.locator('#guest-results tr').filter({hasText:`${stamp} Guest`});
+  await expect(row).toHaveCount(1);
+
+  const selectGuest=async()=>{
+    const detail=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.url().includes('command=loyalty-detail'));
+    const pick=row.getByRole('button',{name:'Pilih'});
+    if(info.project.name==='mobile')await pick.tap({timeout:15000});else await pick.click({timeout:15000});
+    expect((await detail).status()).toBe(200);
+    // Selecting a guest is the only thing that populates the three downstream forms.
+    await expect(page.locator('#consent-guest')).toHaveValue(guestId);
+    await expect(page.locator('#points-guest')).toHaveValue(guestId);
+    await expect(page.locator('#voucher-guest')).toHaveValue(guestId);
+  };
+  await selectGuest();
+  await expect(page.locator('#loyalty-detail')).toContainText('Belum menjadi member');
+  await expect(page.locator('#loyalty-detail')).toContainText('Poin: 0');
+
+  const consentSave=async(status)=>{
+    await page.locator('#consent-type').selectOption('loyalty_program');
+    await page.locator('#consent-status').selectOption(status);
+    await page.locator('#consent-evidence').fill(`${stamp}-${status}`);
+    const posted=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('consent-save'));
+    await page.locator('#consent-form button[type="submit"]').click();
+    const response=await posted;
+    expect(response.status()).toBe(200);
+    expect((await response.json()).success).toBe(true);
+    await expect(page.locator('#toast')).toContainText('Consent disimpan');
+    await expect(page.locator('#loading')).toBeHidden();
+  };
+  const pointsSave=async(points,reason,accepted)=>{
+    await page.locator('#points-value').fill(String(points));
+    await page.locator('#points-reason').fill(reason);
+    const posted=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('loyalty-adjust'));
+    await page.locator('#points-form button[type="submit"]').click();
+    const response=await posted,body=await response.json();
+    if(accepted){expect(response.status()).toBe(200);expect(body.success).toBe(true);}
+    else{expect(body.success).toBe(false);expect(String(body.error)).toContain('negatif');}
+    await expect(page.locator('#loading')).toBeHidden();
+  };
+  const issueVoucher=async(value,accepted)=>{
+    await page.locator('#voucher-type').selectOption('amount');
+    await page.locator('#voucher-value').fill(String(value));
+    await page.locator('#voucher-min').fill('0');
+    await page.locator('#voucher-notes').fill(stamp);
+    const today=new Date().toISOString().slice(0,10);
+    await page.locator('#voucher-from').fill(today);
+    await page.locator('#voucher-until').fill(today);
+    const posted=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('loyalty-voucher-issue'));
+    await page.locator('#voucher-form button[type="submit"]').click();
+    const response=await posted,body=await response.json();
+    if(accepted){expect(response.status()).toBe(200);expect(body.success).toBe(true);}
+    else{expect(body.success).toBe(false);expect(String(body.error)).toContain('Consent loyalty_program aktif diperlukan');}
+    await expect(page.locator('#loading')).toBeHidden();
+    return body;
+  };
+
+  // With no loyalty_program consent yet, voucher issue must be refused. This is
+  // the cross-control rule the UI has no other way to express.
+  await issueVoucher(75000,false);
+  await expect(page.locator('#voucher-list')).toContainText('Belum ada data');
+
+  await consentSave('granted');
+  await expect(page.locator('#loyalty-detail')).toContainText('Consent records: 1');
+
+  // Points: a positive adjustment creates the account and moves the balance.
+  await pointsSave(250,`${stamp} earn`,true);
+  await expect(page.locator('#loyalty-detail')).toContainText('Poin: 250');
+  await expect(page.locator('#loyalty-detail')).not.toContainText('Belum menjadi member');
+  // Over-withdrawal must be refused by the server and must not move the balance.
+  await pointsSave(-250.01,`${stamp} overdraw`,false);
+  await expect(page.locator('#loyalty-detail')).toContainText('Poin: 250');
+
+  const issued=await issueVoucher(75000,true);
+  expect(issued.data.status).toBe('issued');
+  expect(Number(issued.data.value_amount)).toBe(75000);
+  await expect(page.locator('#voucher-list tr').filter({hasText:issued.data.voucher_code})).toContainText('issued');
+
+  // Consent is append-only: revoking adds a second record rather than editing one.
+  await consentSave('revoked');
+  await expect(page.locator('#loyalty-detail')).toContainText('Consent records: 2');
+  // Revocation must immediately block a further voucher, proving the guard is
+  // read at issue time and not cached from the earlier grant.
+  await issueVoucher(75000,false);
+
+  // Reload the whole page and re-select: the state must come back from the server.
+  await page.reload();
+  await expect(page.locator('#loading')).toBeHidden();
+  await page.locator('[data-tab="crm"]').click();
+  await page.locator('#guest-q').fill(`${stamp} Guest`);
+  const reloadedSearch=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.url().includes('command=guest-search'));
+  await page.locator('#guest-search').click();
+  await reloadedSearch;
+  const reloadDetail=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.url().includes('command=loyalty-detail'));
+  const reloadedPick=page.locator('#guest-results tr').filter({hasText:`${stamp} Guest`}).getByRole('button',{name:'Pilih'});
+  if(info.project.name==='mobile')await reloadedPick.tap({timeout:15000});else await reloadedPick.click({timeout:15000});
+  await reloadDetail;
+  await expect(page.locator('#loyalty-detail')).toContainText('Poin: 250');
+  await expect(page.locator('#loyalty-detail')).toContainText('Consent records: 2');
+  await expect(page.locator('#voucher-list tr').filter({hasText:issued.data.voucher_code})).toContainText('issued');
+  fs.writeFileSync(`artifacts/browser-crm-${info.project.name}.json`,JSON.stringify({test:'CRM consent gating, loyalty points exact balance and voucher persistence across reload',pass:true,guestId,consentRecords:2,pointsBalance:'250',voucherCode:issued.data.voucher_code,deniedWithoutConsent:true,deniedAfterRevocation:true,deniedOverdraft:true,scope:'Guest profile seeded through the API as a precondition. UI consent append-only, negative-balance rejection, consent-gated voucher issue and persisted reload verified. Voucher redemption, campaign send, role denial and Telegram not claimed'}));
+});
+
 test('POS: every tab, product draft cancel, creation, search and cart clear',async({page},info)=>{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/pos.html');await expect(page.locator('#product-grid [data-product]').first()).toBeVisible();

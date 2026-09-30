@@ -16,6 +16,15 @@ A subsequent run failed on a connection error after HQ v3 and before provider br
 
 A disjoint-port local reproduction found the TLS fixture refusing to bind with EADDRINUSE, despite no listening server during preflight. The previous test listener range overlapped Linux ephemeral client ports, permitting TIME_WAIT collisions. Fixture listeners have moved below the usual ephemeral range (DB 23384, HTTP 281xx/282xx); local verification uses a separate offset. This addresses the reproduced bind failure, not proof that every earlier transport failure had the same cause.
 
+## Consent gates voucher issuance
+
+`tamasyaEnterpriseIssueVoucher()` requires an active `loyalty_program` consent and
+refuses to issue without one, but no browser scenario exercised the CRM panel, so
+that cross-control rule had no UI evidence at all. The new CRM scenario asserts it
+in both directions: issuance is refused before consent exists and refused again
+after revocation, while the same call succeeds while the consent is active. The
+refusal must leave the voucher list empty and must not mutate the loyalty balance.
+
 ## Acceptance gap
 
 Current browser and Telegram scenarios cover only part of the requested operational surface. See `ACCEPTANCE.md` and generated coverage inventory. Source inventory counts are not passing-test counts. Telegram live remains unavailable by the owner's explicit simulator-first choice.
