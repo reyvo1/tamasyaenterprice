@@ -92,6 +92,31 @@ test('Property setup: save, refresh, persisted reload and restore',async({page},
   await expect(page.locator('#ready-text')).toContainText('Property sudah READY');
   fs.writeFileSync(`artifacts/browser-setup-${info.project.name}.json`,JSON.stringify({test:'property settings save, refresh, persisted reload, restore and re-finalize',pass:true,scope:'Property name and READY transition only; other setup controls not claimed'}));
 });
+test('Multi-property readiness: read-only buttons render their server results',async({page},info)=>{
+  await page.goto('/multi-property-foundation.html');
+  await expect(page.locator('#status-cards .card')).toHaveCount(5);
+  const clickAndRead=async(button,command)=>{
+    const completed=page.waitForResponse(r=>r.url().includes('action=multi-property')&&r.url().includes(`command=${command}`));
+    await page.locator(button).click();
+    const response=await completed;
+    expect(response.status()).toBe(200);
+    const body=await response.json();
+    expect(body.success).toBe(true);
+    return body.data;
+  };
+  await clickAndRead('#refresh','overview');
+  await expect(page.locator('#status-cards .card')).toHaveCount(5);
+  await clickAndRead('#preview','summary-preview');
+  await expect(page.locator('#preview-result .card')).toHaveCount(7);
+  await expect(page.locator('#preview-result')).toContainText('Privacy:');
+  await clickAndRead('#manifest','manifest');
+  expect(JSON.parse(await page.locator('#manifest-result').innerText())).toEqual(expect.any(Object));
+  await clickAndRead('#contracts','capabilities');
+  expect(JSON.parse(await page.locator('#contract-result').innerText())).toEqual(expect.any(Object));
+  await clickAndRead('#outbox','outbox');
+  await expect(page.locator('#outbox-result')).toContainText('job;');
+  fs.writeFileSync(`artifacts/browser-multi-property-${info.project.name}.json`,JSON.stringify({test:'multi-property overview, preview, manifest, capabilities and outbox read-only buttons',pass:true,scope:'Snapshot download/queue/push and dynamic outbox actions not claimed'}));
+});
 test('Enterprise purchase request: draft, submit, approval and reload',async({page,request},info)=>{
   await page.goto('/enterprise-suite.html');await expect(page.locator('#loading')).toBeHidden();
   await page.locator('[data-tab="ap"]').click();
