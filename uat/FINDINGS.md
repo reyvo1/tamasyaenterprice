@@ -47,6 +47,24 @@ approval path, not a regression from that commit. The scenario is left as it is 
 no retry, timeout bump or assertion was weakened to hide it — and the failure is
 recorded here until a run proves it stable across repeated runs.
 
+## Mobile tap() hangs on CRM guest selection, cause still unproven
+
+Runs 36737342387 and 36738107357 both failed the CRM scenario on the **mobile**
+project only, at the `tap()` on the "Pilih" control; desktop passed the same
+scenario in full. The recorded diagnostics rule out the obvious causes — the
+control was visible, enabled, unobstructed by the loading overlay, scrolled to the
+centre, and `document.elementFromPoint` at the tap point returned the BUTTON
+itself. So the element is neither hidden nor covered, yet the touch never lands
+within 15s.
+
+The suite already records the same intermittent shape on the procurement mobile
+approval buttons, and most other scenarios drive their mobile controls with a
+plain `click()` and pass. Whether this is touch-emulation flakiness under
+`isMobile`/`hasTouch` or genuine movement in the layout is **not yet established**;
+the scenario now records the first and settled bounding boxes plus a `boxStable`
+flag so the next run distinguishes the two. No timeout was raised, no retry was
+added and no assertion was weakened to make this pass.
+
 ## Acceptance gap
 
 Current browser and Telegram scenarios cover only part of the requested operational surface. See `ACCEPTANCE.md` and generated coverage inventory. Source inventory counts are not passing-test counts. Telegram live remains unavailable by the owner's explicit simulator-first choice.
