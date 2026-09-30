@@ -91,7 +91,10 @@ test('Enterprise purchase request: draft, submit, approval and reload',async({pa
   await page.locator('#pr-item').fill(item);await page.locator('#pr-qty').fill('2');await page.locator('#pr-price').fill('12000');
   const response=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('pr-save'));
   await page.locator('#pr-form button[type="submit"]').click();
-  const r=await response;expect(r.status()).toBe(200);const d=await r.json();expect(d.success).toBe(true);
+  const r=await response;
+  const d=await r.json();
+  fs.writeFileSync(`artifacts/browser-pr-diagnostic-${info.project.name}.json`,JSON.stringify({httpStatus:r.status(),success:d.success===true,code:typeof d.code==='string'?d.code:null}));
+  expect(r.status()).toBe(200);expect(d.success).toBe(true);
   expect(d.data.request.id).toBeTruthy();expect(d.data.request.status).toBe('draft');
   await page.reload();await expect(page.locator('#loading')).toBeHidden();await page.locator('[data-tab="ap"]').click();
   await expect(page.locator('#pr-list')).toContainText(d.data.request.request_number || d.data.request.pr_number || 'draft');
