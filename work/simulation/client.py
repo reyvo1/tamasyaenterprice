@@ -2,8 +2,8 @@ from pathlib import Path
 import json,urllib.request,urllib.error,uuid,sys
 base=Path(__file__).resolve().parent
 if hasattr(sys.stdout,'reconfigure'):sys.stdout.reconfigure(encoding='utf-8')
-def request(action,method='GET',data=None,operation=None,auth=True,port=38184):
- headers={'Origin':'http://127.0.0.1:38184','X-Device-ID':'simulation-browser-01','X-Device-Name':'Integration test','Content-Type':'application/json'}
+def request(action,method='GET',data=None,operation=None,auth=True,port=28184):
+ headers={'Origin':'http://127.0.0.1:28184','X-Device-ID':'simulation-browser-01','X-Device-Name':'Integration test','Content-Type':'application/json'}
  if auth and (base/'session.json').exists():headers['Authorization']='Bearer '+json.loads((base/'session.json').read_text())['token']
  if method!='GET':headers['X-Tamasya-Operation-ID']=operation or 'sim_'+uuid.uuid4().hex
  req=urllib.request.Request(f'http://127.0.0.1:{port}/api.php?action='+action,data=json.dumps(data).encode() if data is not None else None,method=method,headers=headers)

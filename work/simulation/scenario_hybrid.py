@@ -22,7 +22,7 @@ def send(s,op=None,nonce=None,corrupt=False,ts=None):
  secret=config['properties'][s['companyId']][s['propertyId']]['secret']
  canonical='\n'.join([ts,nonce,s['companyId'],s['propertyId'],op,hashlib.sha256(body).hexdigest()])
  headers['X-Tamasya-Signature']=hmac.new(secret.encode(),canonical.encode(),hashlib.sha256).hexdigest() if not corrupt else '0'*64
- return http('http://127.0.0.1:38185/api.php?action=property-snapshot','POST',body,headers)
+ return http('http://127.0.0.1:28185/api.php?action=property-snapshot','POST',body,headers)
 today=__import__('datetime').datetime.now(__import__('datetime').timezone(__import__('datetime').timedelta(hours=8))).date()
 fromdate=str(today.replace(day=1));todate=str(today)
 status,body=request(f'multi-property&command=snapshot-v3&from={fromdate}&to={todate}')
@@ -38,9 +38,9 @@ for f,t in [('2026-02-30','2026-03-01'),('2026-09-15','2026-09-01'),('2025-01-01
  st,_=request(f'multi-property&command=snapshot-v3&from={f}&to={t}');check('Reject invalid snapshot date range '+f+' '+t,st==400)
 auth={'Authorization':'Bearer '+json.loads((base/'session.json').read_text())['token'],'X-Device-ID':'simulation-browser-01'}
 for key,value in [('X-Tamasya-Company-ID','other-company'),('X-Tamasya-Property-ID','hotel-b'),('X-Tamasya-Property-ID','')]:
- st,b,_=http('http://127.0.0.1:38184/api.php?action=multi-property',headers={**auth,key:value});check('Property API rejects explicit foreign/malformed scope '+key+value,st==409 and b['code']=='PROPERTY_SCOPE_MISMATCH')
-st,b,h=http(f'http://127.0.0.1:38184/api.php?action=multi-property&command=snapshot-v3&from={fromdate}&to={todate}',headers=auth)
-st,b2,h2=http(f'http://127.0.0.1:38184/api.php?action=multi-property&command=snapshot-v3&from={fromdate}&to={todate}',headers={**auth,'If-None-Match':h['ETag']});check('Property snapshot conditional GET 304',st==304)
+ st,b,_=http('http://127.0.0.1:28184/api.php?action=multi-property',headers={**auth,key:value});check('Property API rejects explicit foreign/malformed scope '+key+value,st==409 and b['code']=='PROPERTY_SCOPE_MISMATCH')
+st,b,h=http(f'http://127.0.0.1:28184/api.php?action=multi-property&command=snapshot-v3&from={fromdate}&to={todate}',headers=auth)
+st,b2,h2=http(f'http://127.0.0.1:28184/api.php?action=multi-property&command=snapshot-v3&from={fromdate}&to={todate}',headers={**auth,'If-None-Match':h['ETag']});check('Property snapshot conditional GET 304',st==304)
 st,b,_=send(s,corrupt=True);check('HQ rejects forged signature',st==401 and b['code']=='SIGNATURE_INVALID')
 st,b,_=send(s,ts=int(time.time())-600);check('HQ rejects expired signature',st==401)
 bad=copy.deepcopy(s);bad['metricsMinor']['revenue']='1';st,b,_=send(bad);check('HQ rejects corrupted checksum',st==422)
@@ -63,9 +63,9 @@ st,b,_=send(third);check('Different currency property accepted without FX conver
 foreign=copy.deepcopy(s);foreign['companyId']='other-company';foreign['propertyId']='hotel-z';foreign['checksumSha256']=checksum(foreign)
 st,b,_=send(foreign);check('Separate company stored independently',st==200,b)
 viewer={'Authorization':'Bearer '+token}
-st,b,_=http('http://127.0.0.1:38185/api.php');check('Anonymous HQ read denied',st==401)
-st,b,_=http('http://127.0.0.1:38185/api.php',headers={'Authorization':'Bearer '+'x'*40});check('Unknown HQ viewer denied',st==403)
-url=f'http://127.0.0.1:38185/api.php?action=consolidated&from={fromdate}&to={todate}'
+st,b,_=http('http://127.0.0.1:28185/api.php');check('Anonymous HQ read denied',st==401)
+st,b,_=http('http://127.0.0.1:28185/api.php',headers={'Authorization':'Bearer '+'x'*40});check('Unknown HQ viewer denied',st==403)
+url=f'http://127.0.0.1:28185/api.php?action=consolidated&from={fromdate}&to={todate}'
 st,b,_=http(url+'&properties=hotel-z',headers=viewer);check('Company viewer cannot query foreign property',st==403)
 st,b,h=http(url,headers=viewer);check('Consolidation reads stored aggregate model',st==200,b.get('message'));report=b['data']['report']
 check('HQ report checksum verifiable',checksum(report)==report['checksumSha256'])

@@ -5,17 +5,17 @@ b=Path(__file__).resolve().parent;root=b.parent/'enterprise';private=b.parent/'s
 args=[mysql_binary(),'--defaults-file='+str(b/'client.ini'),'--batch','--skip-column-names']
 def sql(q,db=None):
  r=subprocess.run(args+([db] if db else []),input=q,capture_output=True,text=True,encoding='utf-8');r.check_returncode();return r.stdout.strip()
-port,datadir=sql('SELECT @@port,@@datadir').split('\t');assert port=='33384' and Path(datadir).resolve()==(b/'mysql-data').resolve()
+port,datadir=sql('SELECT @@port,@@datadir').split('\t');assert port=='23384' and Path(datadir).resolve()==(b/'mysql-data').resolve()
 try:
- with socket.create_connection(('127.0.0.1',38194),timeout=.2):raise RuntimeError('Currency port occupied')
+ with socket.create_connection(('127.0.0.1',28194),timeout=.2):raise RuntimeError('Currency port occupied')
 except OSError:pass
-suffix=secrets.token_hex(4);db='tamasya_currency_test_'+suffix;results=[];token=None;url='http://127.0.0.1:38194'
+suffix=secrets.token_hex(4);db='tamasya_currency_test_'+suffix;results=[];token=None;url='http://127.0.0.1:28194'
 def check(name,ok,detail=None):
  results.append({'name':name,'pass':bool(ok),'detail':detail});(b/'growth-currency-results.json').write_text(json.dumps(results,indent=2),encoding='utf-8');print('PASS' if ok else 'FAIL',name,flush=True)
  assert ok,(name,detail)
 sql('CREATE DATABASE `'+db+'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;USE `'+db+'`;\n'+(root/'database_setup.sql').read_text(encoding='utf-8-sig'))
 sql("GRANT ALL ON `"+db+"`.* TO 'tamasya_sim'@'127.0.0.1'")
-cred=json.loads((b/'credentials.json').read_text(encoding='utf-8'));credential=private/(suffix+'-db.php');credential.write_text("<?php return ['host'=>'127.0.0.1','port'=>33384,'name'=>'"+db+"','user'=>'tamasya_sim','pass'=>'"+cred['password']+"'];",encoding='utf-8')
+cred=json.loads((b/'credentials.json').read_text(encoding='utf-8'));credential=private/(suffix+'-db.php');credential.write_text("<?php return ['host'=>'127.0.0.1','port'=>23384,'name'=>'"+db+"','user'=>'tamasya_sim','pass'=>'"+cred['password']+"'];",encoding='utf-8')
 env=json.loads((b/'environment.json').read_text(encoding='utf-8'));env.update(APP_CREDENTIALS_FILE=str(credential),APP_EXPECTED_DB_NAME=db,APP_URL=url,APP_ALLOWED_ORIGINS=url,TAMASYA_PROPERTY_ID='usd-fixture',TAMASYA_PROPERTY_CODE='USDFIX',TAMASYA_PROPERTY_CURRENCY='USD',TAMASYA_COMPANY_ID='currency-fixture-company',TAMASYA_PROPERTY_NAME='Synthetic USD fixture',TAMASYA_NODE_ID='usd-node',TAMASYA_GROWTH_SUITE_ENABLED='1',TAMASYA_ENTERPRISE_COMPLETION_ENABLED='1',TAMASYA_HQ_BRIDGE_ENABLED='0',TAMASYA_ENTERPRISE_CRM_CAMPAIGN_SEND_ENABLED='0')
 for key in ['KPI','RATE_MANAGER','GROUP_CORPORATE','ADVANCED_FOLIO','PROCUREMENT','CHANNEL_FOUNDATION','PAYMENT_FOUNDATION']:env['TAMASYA_GROWTH_'+key+'_ENABLED']='1'
 env={**os.environ,**env}
@@ -34,11 +34,11 @@ def request(action,data=None,expected=True):
  d=json.loads(r.read().decode('utf-8-sig'));ok=r.status==200 and d.get('success') is not False
  check(action+('' if expected else ' currency mismatch rejected'),ok==expected and (expected or 'mata uang' in str(d.get('error',d.get('message',''))).lower()),{'status':r.status,'message':d.get('error',d.get('message'))});return d
 with (private/(suffix+'-php.log')).open('ab') as log:
- p=subprocess.Popen(['php','-S','127.0.0.1:38194','-t',str(root)],env=env,stdout=log,stderr=log,**background_process_options())
+ p=subprocess.Popen(['php','-S','127.0.0.1:28194','-t',str(root)],env=env,stdout=log,stderr=log,**background_process_options())
  try:
   for _ in range(50):
    try:
-    with socket.create_connection(('127.0.0.1',38194),timeout=.2):break
+    with socket.create_connection(('127.0.0.1',28194),timeout=.2):break
    except OSError:time.sleep(.1)
   token=request('login',{'username':env['APP_BOOTSTRAP_ADMIN_USERNAME'],'password':env['APP_BOOTSTRAP_ADMIN_PASSWORD']})['token']
   request('property-setup',{'command':'save','propertyName':'Synthetic USD fixture','address':'Fixture only','phone':'0000000000','email':'fixture@example.invalid','taxSetupMode':'not_applicable','paymentSetupMode':'cash_only'})

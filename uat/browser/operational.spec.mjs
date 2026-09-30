@@ -4,7 +4,7 @@ import path from 'node:path';
 const fixture=process.env.TAMASYA_UAT_FIXTURE;
 if(!fixture)throw Error('Dedicated UAT fixture required');
 const env=JSON.parse(fs.readFileSync(path.join(fixture,'environment.json'),'utf8'));
-const base='http://127.0.0.1:38189';
+const base='http://127.0.0.1:28189';
 test.beforeEach(async({page,request})=>{
   // Block all nonlocal browser egress (providers/CDNs must never receive fixture data).
   await page.route('**/*',route=>{
@@ -60,4 +60,33 @@ test('Enterprise purchase request: draft, submit, approval and reload',async({pa
   await page.reload();await expect(page.locator('#loading')).toBeHidden();await page.locator('[data-tab="ap"]').click();
   await expect(page.locator('#pr-list tr').filter({hasText:d.data.request.pr_number})).toContainText('approved');
   fs.writeFileSync(`artifacts/browser-pr-${info.project.name}.json`,JSON.stringify({test:'browser PR draft, submit, approval and reload',pass:true,requestId:d.data.request.id,scope:'PR lifecycle through approval; downstream PO/AP not claimed as UI-tested'}));
+});
+
+test('POS: every tab, product draft cancel, creation, search and cart clear',async({page},info)=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('/pos.html');await expect(page.locator('#product-grid [data-product]').first()).toBeVisible();
+  for(const view of ['cashier','products','stock','sales','deliveries']){
+    await page.locator(`[data-view="${view}"]`).click();
+    await expect(page.locator(`#view-${view}`)).toBeVisible();
+  }
+  await page.locator('[data-view="products"]').click();
+  await page.locator('#add-product-btn').click();await expect(page.locator('#product-dialog')).toBeVisible();
+  await page.locator('#cancel-product-dialog').click();await expect(page.locator('#product-dialog')).toBeHidden();
+  await page.locator('#add-product-btn').click();
+  const sku='UAT-'+info.project.name+'-'+Date.now(),name='UAT browser product '+sku;
+  await page.locator('#product-sku').fill(sku);await page.locator('#product-name').fill(name);
+  await page.locator('#product-cost').fill('1000');await page.locator('#product-price').fill('2000');
+  await page.locator('#product-initial-stock').fill('5');
+  const saved=page.waitForResponse(r=>r.url().includes('action=pos-product-save')&&r.request().method()==='POST');
+  await page.locator('#save-product').click();const response=await saved;
+  expect(response.status()).toBe(200);expect((await response.json()).success).toBe(true);
+  await expect(page.locator('#product-dialog')).toBeHidden();
+  await expect(page.locator('#products-table')).toContainText(sku);
+  await page.reload();await page.locator('[data-view="cashier"]').click();
+  await page.locator('#product-search').fill(sku);
+  const product=page.locator('#product-grid [data-product]');await expect(product).toHaveCount(1);await expect(product).toContainText(name);
+  await expect(page.locator('#checkout-btn')).toBeDisabled();await product.click();await expect(page.locator('#checkout-btn')).toBeEnabled();
+  await expect(page.locator('#cart-list')).toContainText(name);await page.locator('#clear-cart').click();await expect(page.locator('#checkout-btn')).toBeDisabled();
+  expect(errors).toEqual([]);
+  fs.writeFileSync(`artifacts/browser-pos-${info.project.name}.json`,JSON.stringify({test:'POS navigation, cancel, persist product, search and clear cart',pass:true,sku,scope:'No completed sale, refund or device printing claimed'}));
 });

@@ -21,13 +21,13 @@ class Proxy(BaseHTTPRequestHandler):
    payload={'success':True,'status':'acknowledged','operation_id':self.headers.get('X-Tamasya-Operation-ID'),'receipt':'0'*64}
    if mode=='permanent':payload={'success':False,'code':'SIMULATED_CONFIG_ERROR'}
    content=json.dumps(payload).encode();self.send_response(202 if mode=='accepted' else 409 if mode=='permanent' else 200);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(content)));self.end_headers();self.wfile.write(content);return
-  req=urllib.request.Request('http://127.0.0.1:38185'+self.path,data=data,headers=headers,method='POST')
+  req=urllib.request.Request('http://127.0.0.1:28185'+self.path,data=data,headers=headers,method='POST')
   try: r=urllib.request.urlopen(req,timeout=30)
   except urllib.error.HTTPError as error:r=error
   content=r.read()
   if mode=='drop_after_commit':self.connection.shutdown(socket.SHUT_RDWR);self.connection.close();return
   self.send_response(r.status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(content)));self.end_headers();self.wfile.write(content)
  def log_message(self,*args):pass
-server=ThreadingHTTPServer(('127.0.0.1',38186),Proxy)
+server=ThreadingHTTPServer(('127.0.0.1',28186),Proxy)
 context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.load_cert_chain(b/'tls-ca.pem',b/'tls-key.pem');server.socket=context.wrap_socket(server.socket,server_side=True)
-print('TLS staging proxy localhost:38186 ready',flush=True);server.serve_forever()
+print('TLS staging proxy localhost:28186 ready',flush=True);server.serve_forever()

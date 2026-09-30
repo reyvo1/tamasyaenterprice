@@ -9,7 +9,7 @@ def call(name,action,data=None,expected=200,method='POST'):
  check(name,status==expected and (body.get('success') is not False if status<300 else body.get('success') is False),{'status':status,'message':body.get('error',body.get('message',''))})
  return body
 call('stock_conflict_fixed','pos-sale-create',{'paymentMethod':'cash','items':[{'productId':state['product_1'],'quantity':1000}]},409)
-_,b=request('hotel-data');check('Database config projects actual nonstandard port',str(b.get('config',{}).get('dbPort'))=='33384')
+_,b=request('hotel-data');check('Database config projects actual nonstandard port',str(b.get('config',{}).get('dbPort'))=='23384')
 call('bank_setup','bank-accounts',{'bankAccounts':[{'id':'sim_bank','name':'SIM BANK','accountNumber':'000000','accountHolder':'SIMULATION HOTEL','type':'bank','isActive':True}]})
 before=db('SELECT COUNT(*) n FROM transactions')[0]['n']
 call('overpayment_rejected','booking-payments',{'bookingId':state['active'],'amount':3,'paymentMethod':'cash','operationId':'sim_fin_overpayment'},409)

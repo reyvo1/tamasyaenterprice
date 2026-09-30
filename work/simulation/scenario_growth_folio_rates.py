@@ -6,7 +6,7 @@ b=Path(__file__).resolve().parent;e=json.loads((base/'environment.json').read_te
 args=[mysql_binary(),'--defaults-file='+str(b/'client.ini'),'--batch','--skip-column-names',db]
 def sql(q):
  r=subprocess.run(args,input=q,capture_output=True,text=True,encoding='utf-8');r.check_returncode();return r.stdout.strip()
-assert sql('SELECT @@port')=='33384'
+assert sql('SELECT @@port')=='23384'
 results=[];prefix='f'+secrets.token_hex(5);today=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).date().isoformat()
 def check(name,ok,detail=None):
  results.append({'name':name,'pass':bool(ok),'detail':detail});(b/'growth-folio-rate-results.json').write_text(json.dumps(results,indent=2),encoding='utf-8');print('PASS' if ok else 'FAIL',name,flush=True)

@@ -8,10 +8,10 @@ assert test_source in [(base.parent/name).resolve() for name in ['audit','hybrid
 shutil.copytree(test_source,site,dirs_exist_ok=True)
 creds=json.loads((base/'credentials.json').read_text())
 credential_file=base/'db_credentials.php'
-credential_file.write_text('<?php\nreturn '+"['host'=>'127.0.0.1','port'=>33384,'name'=>'tamasya_sim','user'=>'tamasya_sim','pass'=>'"+creds['password']+"'];\n",encoding='utf-8')
+credential_file.write_text('<?php\nreturn '+"['host'=>'127.0.0.1','port'=>23384,'name'=>'tamasya_sim','user'=>'tamasya_sim','pass'=>'"+creds['password']+"'];\n",encoding='utf-8')
 env={
  'APP_ENV':'staging','APP_DEBUG':'0','APP_TIMEZONE':'Asia/Makassar',
- 'APP_URL':'http://127.0.0.1:38184','APP_ALLOWED_ORIGINS':'http://127.0.0.1:38184',
+ 'APP_URL':'http://127.0.0.1:28184','APP_ALLOWED_ORIGINS':'http://127.0.0.1:28184',
  'APP_ALLOWED_HOSTS':'127.0.0.1','APP_ENFORCE_ALLOWED_HOSTS':'1',
  'APP_CREDENTIALS_FILE':credential_file.as_posix(),'APP_EXPECTED_DB_NAME':'tamasya_sim','APP_REQUIRE_EXPECTED_DB_NAME':'1',
  'APP_ENCRYPTION_KEY':secrets.token_hex(32),'SECURITY_EVENT_HASH_KEY':secrets.token_hex(32),
@@ -33,5 +33,5 @@ r=subprocess.run(['php',str(site/'first_install.php')],env=runtime,capture_outpu
 print('First install:',r.returncode,r.stdout[:3500],r.stderr[:1000])
 if r.returncode:raise SystemExit(r.returncode)
 log=open(base/'logs/php-server.log','ab')
-p=subprocess.Popen(['php','-S','127.0.0.1:38184','-t',str(site)],env=runtime,stdout=log,stderr=log,**background_process_options())
+p=subprocess.Popen(['php','-S','127.0.0.1:28184','-t',str(site)],env=runtime,stdout=log,stderr=log,**background_process_options())
 (base/'php.pid').write_text(str(p.pid));print('PHP test server started',p.pid)

@@ -2,10 +2,10 @@
 declare(strict_types=1);
 if(PHP_SAPI!=='cli')exit(1);
 putenv('NODE_CLUSTER_ENABLED=0');putenv('TAMASYA_NODE_MODE=');
-$_SERVER['REQUEST_METHOD']='GET';$_SERVER['HTTP_HOST']='127.0.0.1:38184';$_SERVER['REMOTE_ADDR']='127.0.0.1';$_GET=['action'=>'test-bootstrap'];
+$_SERVER['REQUEST_METHOD']='GET';$_SERVER['HTTP_HOST']='127.0.0.1:28184';$_SERVER['REMOTE_ADDR']='127.0.0.1';$_GET=['action'=>'test-bootstrap'];
 define('TAMASYA_SERVICE_BOOTSTRAP',true);ob_start();require __DIR__.'/site/api.php';ob_end_clean();
 restore_exception_handler();
-if((int)$pdo->query('SELECT @@port')->fetchColumn()!==33384||$pdo->query('SELECT DATABASE()')->fetchColumn()!=='tamasya_sim')throw new RuntimeException('Local simulation database required.');
+if((int)$pdo->query('SELECT @@port')->fetchColumn()!==23384||$pdo->query('SELECT DATABASE()')->fetchColumn()!=='tamasya_sim')throw new RuntimeException('Local simulation database required.');
 // Session-local temporary tables shadow only cluster metadata, never hotel records.
 foreach(['node_cluster_state','node_cluster_members','node_sync_settings','node_cluster_events'] as $table){$ddl=$pdo->query('SHOW CREATE TABLE `'.$table.'`')->fetch(PDO::FETCH_NUM)[1];$pdo->exec(preg_replace('/^CREATE TABLE /','CREATE TEMPORARY TABLE ',$ddl));}
 $pdo->exec('CREATE TEMPORARY TABLE ha_commit_probe(id int PRIMARY KEY) ENGINE=InnoDB');

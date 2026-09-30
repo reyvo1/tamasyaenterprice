@@ -19,8 +19,8 @@ def ready(port):
 def worker(environment=env):return subprocess.run(['php','-d','curl.cainfo='+str(b/'tls-ca.pem'),'-d','openssl.cafile='+str(b/'tls-ca.pem'),str(b/'site/service_worker.php'),'once'],env=environment,capture_output=True,text=True,timeout=80)
 try:
  try:
-  with socket.create_connection(('127.0.0.1',38186),timeout=.2):pass
- except OSError:process([python_command(),str(b/'hybrid_tls.py')],os.environ.copy());ready(38186)
+  with socket.create_connection(('127.0.0.1',28186),timeout=.2):pass
+ except OSError:process([python_command(),str(b/'hybrid_tls.py')],os.environ.copy());ready(28186)
  (b/'hybrid-proxy-mode').write_text('')
  operation='worker_'+uuid.uuid4().hex
  status,data=request('multi-property','POST',{'command':'queue-snapshot','operationId':operation,'from':'2026-09-01','to':'2026-09-30'})
@@ -33,9 +33,9 @@ try:
  check('Worker restart does not redeliver acknowledged job',r.returncode==0 and job['attempts']==before)
  r=worker({**env,'TAMASYA_NODE_ROLE':'local_backup'});payload=json.loads(r.stdout)
  check('Standby worker suppresses outgoing side effects',r.returncode==0 and payload['data']['writer'] is False)
- process(['php','-S','127.0.0.1:38188','-t',str(b/'site')],env);ready(38188)
+ process(['php','-S','127.0.0.1:28188','-t',str(b/'site')],env);ready(28188)
  def read(i):
-  started=time.perf_counter();status,data=request('multi-property&command=snapshot-v3&from=2026-09-01&to=2026-09-30',port=38184 if i%2==0 else 38188);return (time.perf_counter()-started)*1000,status,data.get('data',{}).get('checksumSha256')
+  started=time.perf_counter();status,data=request('multi-property&command=snapshot-v3&from=2026-09-01&to=2026-09-30',port=28184 if i%2==0 else 28188);return (time.perf_counter()-started)*1000,status,data.get('data',{}).get('checksumSha256')
  with concurrent.futures.ThreadPoolExecutor(4) as pool:reads=list(pool.map(read,range(40)))
  check('Two PHP API processes return successful scoped snapshots',all(r[1]==200 for r in reads))
  check('Two API processes agree on canonical snapshot',len({r[2] for r in reads})==1)

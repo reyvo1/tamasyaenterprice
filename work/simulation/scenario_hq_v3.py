@@ -6,7 +6,7 @@ b=Path(__file__).resolve().parent;e=json.loads((base/'environment.json').read_te
 args=[mysql_binary(),'--defaults-file='+str(b/'client.ini'),'--batch','--skip-column-names']
 def sql(q,database=db):
  r=subprocess.run(args+[database],input=q,capture_output=True,text=True,encoding='utf-8');r.check_returncode();return r.stdout.strip()
-port,datadir=sql('SELECT @@port,@@datadir').split('\t');assert port=='33384' and Path(datadir).resolve()==mysql_datadir(b/'mysql-data')
+port,datadir=sql('SELECT @@port,@@datadir').split('\t');assert port=='23384' and Path(datadir).resolve()==mysql_datadir(b/'mysql-data')
 results=[];prefix='v3_'+secrets.token_hex(5);today=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).date().isoformat();start=today[:7]+'-01'
 def check(name,ok,detail=None):
  results.append({'name':name,'pass':bool(ok),'detail':detail});(b/'growth-hq-v3-results.json').write_text(json.dumps(results,indent=2),encoding='utf-8');print('PASS' if ok else 'FAIL',name,flush=True)
@@ -26,16 +26,16 @@ def stable(v):return json.dumps(v,sort_keys=True,separators=(',',':'),ensure_asc
 def rehash(s):
  s.pop('checksumSha256',None);s['checksumSha256']=hashlib.sha256(stable(s).encode()).hexdigest();return s
 try:
- with socket.create_connection(('127.0.0.1',38190),timeout=.3):raise RuntimeError('Test port 38190 already in use')
+ with socket.create_connection(('127.0.0.1',28190),timeout=.3):raise RuntimeError('Test port 28190 already in use')
 except OSError:pass
 hqdb='tamasya_hq_growth_test_'+secrets.token_hex(4)
 sql('CREATE DATABASE `'+hqdb+'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; USE `'+hqdb+'`;\n'+(base/'site/hq/schema.sql').read_text(encoding='utf-8'))
 sql("GRANT ALL ON `"+hqdb+"`.* TO 'tamasya_sim'@'127.0.0.1'")
 creds=json.loads((b/'credentials.json').read_text(encoding='utf-8'));token=secrets.token_urlsafe(32);company=v3['companyId'];prop=v3['propertyId'];other='other-fixture-hotel'
-cfg={'dsn':'mysql:host=127.0.0.1;port=33384;dbname='+hqdb+';charset=utf8mb4','username':'tamasya_sim','password':creds['password'],'properties':{company:{prop:{'enabled':True,'secret':secrets.token_hex(32)},other:{'enabled':True,'secret':secrets.token_hex(32)}}},'viewers':[{'enabled':True,'companyId':company,'propertyIds':[prop,other],'tokenSha256':hashlib.sha256(token.encode()).hexdigest()}]}
+cfg={'dsn':'mysql:host=127.0.0.1;port=23384;dbname='+hqdb+';charset=utf8mb4','username':'tamasya_sim','password':creds['password'],'properties':{company:{prop:{'enabled':True,'secret':secrets.token_hex(32)},other:{'enabled':True,'secret':secrets.token_hex(32)}}},'viewers':[{'enabled':True,'companyId':company,'propertyIds':[prop,other],'tokenSha256':hashlib.sha256(token.encode()).hexdigest()}]}
 path=base/(prefix+'-hq.private.json');path.write_text(json.dumps(cfg),encoding='utf-8')
 def http(action,body=None,headers=None):
- req=urllib.request.Request('http://127.0.0.1:38190/api.php?action='+action,data=body,headers=headers or {},method='POST' if body is not None else 'GET')
+ req=urllib.request.Request('http://127.0.0.1:28190/api.php?action='+action,data=body,headers=headers or {},method='POST' if body is not None else 'GET')
  try:r=urllib.request.urlopen(req,timeout=60)
  except urllib.error.HTTPError as x:r=x
  raw=r.read().decode('utf-8-sig')
@@ -47,11 +47,11 @@ def push(s,op=None):
  canonical='\n'.join([ts,nonce,company,s['propertyId'],op,hashlib.sha256(body).hexdigest()])
  headers={'Content-Type':'application/json','X-Tamasya-Timestamp':ts,'X-Tamasya-Nonce':nonce,'X-Tamasya-Company-ID':company,'X-Tamasya-Property-ID':s['propertyId'],'X-Tamasya-Operation-ID':op,'X-Tamasya-Signature':hmac.new(cfg['properties'][company][s['propertyId']]['secret'].encode(),canonical.encode(),hashlib.sha256).hexdigest()}
  return http('property-snapshot',body,headers)
-log=open(base/'logs'/('hq-'+prefix+'.log'),'ab');p=subprocess.Popen(['php','-S','127.0.0.1:38190','-t',str(base/'site/hq')],env={**os.environ,**e,'TAMASYA_HQ_CONFIG_FILE':str(path)},stdout=log,stderr=log,**background_process_options())
+log=open(base/'logs'/('hq-'+prefix+'.log'),'ab');p=subprocess.Popen(['php','-S','127.0.0.1:28190','-t',str(base/'site/hq')],env={**os.environ,**e,'TAMASYA_HQ_CONFIG_FILE':str(path)},stdout=log,stderr=log,**background_process_options())
 try:
  for i in range(30):
   try:
-   with socket.create_connection(('127.0.0.1',38190),timeout=.2):break
+   with socket.create_connection(('127.0.0.1',28190),timeout=.2):break
   except OSError:time.sleep(.1)
  op=prefix+'_original';s,d=push(v2,op);check('Signed v2 ingest accepted',s==200 and d.get('status')=='acknowledged',d)
  s,d=push(v3);check('Signed additive v3 upgrade at same revision accepted',s==200 and d.get('status')=='acknowledged',d)

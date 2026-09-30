@@ -8,7 +8,7 @@ def check(name,ok):
  (b/'enterprise-report-results.json').write_text(json.dumps(results,indent=2),encoding='utf-8')
  if not ok:raise AssertionError(name)
 def req(query,body=None,bearer=token):
- request=urllib.request.Request('http://127.0.0.1:38185/api.php?'+query,data=None if body is None else json.dumps(body).encode(),headers={'Authorization':'Bearer '+bearer,'Content-Type':'application/json'})
+ request=urllib.request.Request('http://127.0.0.1:28185/api.php?'+query,data=None if body is None else json.dumps(body).encode(),headers={'Authorization':'Bearer '+bearer,'Content-Type':'application/json'})
  try:
   with urllib.request.urlopen(request,timeout=30) as r:return r.status,r.read(),dict(r.headers)
  except urllib.error.HTTPError as e:return e.code,e.read(),dict(e.headers)

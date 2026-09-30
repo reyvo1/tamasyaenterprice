@@ -15,16 +15,16 @@ def ready(port):
 def start(args,env=None):
     p=subprocess.Popen(args,env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL);children.append(p);return p
 try:
-    for port in (33384,38189):
+    for port in (23384,28189):
         try:
             with socket.create_connection(('127.0.0.1',port),timeout=.2):raise RuntimeError('Port occupied')
         except ConnectionRefusedError:pass
     start(['mysqld','--no-defaults','--datadir='+str(tmp/'data'),'--socket='+str(tmp/'mysql.sock'),
-      '--pid-file='+str(tmp/'mysql.pid'),'--port=33384','--bind-address=127.0.0.1','--mysqlx=OFF',
-      '--skip-log-bin','--secure-file-priv='+str(tmp),'--log-error='+str(tmp/'mysql.log')]);ready(33384)
+      '--pid-file='+str(tmp/'mysql.pid'),'--port=23384','--bind-address=127.0.0.1','--mysqlx=OFF',
+      '--skip-log-bin','--secure-file-priv='+str(tmp),'--log-error='+str(tmp/'mysql.log')]);ready(23384)
     e=json.loads((growth/'environment.json').read_text());e['TELEGRAM_SIMULATION_ENABLED']='1'
     # Only a dedicated local fixture; no bot token and no live outbound transport.
-    start(['php','-S','127.0.0.1:38189','-t',str(growth/'site')],{**os.environ,**e});ready(38189)
+    start(['php','-S','127.0.0.1:28189','-t',str(growth/'site')],{**os.environ,**e});ready(28189)
     testenv={**os.environ,'TAMASYA_UAT_FIXTURE':str(growth),'TAMASYA_UAT_RUN':str(run)}
     subprocess.run([sys.executable,str(root/'uat/telegram_simulator.py')],env=testenv,check=True)
     subprocess.run(['npx','playwright','test'],cwd=root,env=testenv,check=True)

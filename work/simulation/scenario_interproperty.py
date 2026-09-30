@@ -5,7 +5,7 @@ b=Path(__file__).resolve().parent;root=b.parent/'enterprise';private=b.parent/'s
 mysql=mysql_binary();args=[mysql,'--defaults-file='+str(b/'client.ini'),'--batch','--skip-column-names']
 def sql(q,db=None):
  r=subprocess.run(args+([db] if db else []),input=q,capture_output=True,text=True,encoding='utf-8');r.check_returncode();return r.stdout.strip()
-port,datadir=sql('SELECT @@port,@@datadir').split('\t');assert port=='33384' and Path(datadir).resolve()==(b/'mysql-data').resolve()
+port,datadir=sql('SELECT @@port,@@datadir').split('\t');assert port=='23384' and Path(datadir).resolve()==(b/'mysql-data').resolve()
 backup=json.loads((b/'logs/backup-result.json').read_text(encoding='utf-8'));dump=(b/'backups'/backup['file']).read_text(encoding='utf-8');assert not re.search(r'^USE\s|^CREATE DATABASE',dump,re.M|re.I)
 baseenv=json.loads((b/'environment.json').read_text(encoding='utf-8'));creds=json.loads((b/'credentials.json').read_text(encoding='utf-8'));suffix=secrets.token_hex(4);key=secrets.token_hex(32);nodes={};children=[];logs=[];results=[]
 def check(name,ok,detail=None):
@@ -28,7 +28,7 @@ def post(node,command,data,expected=True,op=None):
 def snapshot(node):
  today=datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).date().isoformat();s,d=request(node,'multi-property&command=snapshot-v3&from='+today[:7]+'-01&to='+today);check(node+' canonical snapshot',s==200 and d.get('success') is True,d.get('error'));return d['data']['metricsMinor']
 try:
- for node,port,peer in [('a',38192,'b'),('b',38193,'a')]:
+ for node,port,peer in [('a',28192,'b'),('b',28193,'a')]:
   try:
    with socket.create_connection(('127.0.0.1',port),timeout=.2):raise RuntimeError('Port already in use')
   except OSError:pass
@@ -36,7 +36,7 @@ try:
   sql('CREATE DATABASE `'+db+'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;USE `'+db+'`;\n'+dump)
   sql("GRANT ALL ON `"+db+"`.* TO 'tamasya_sim'@'127.0.0.1'")
   sql("UPDATE property_settings SET company_id='transfer-fixture-company',property_id='"+prop+"',property_code='"+code+"'",db)
-  credential=private/(node+'-'+suffix+'-db.php');credential.write_text("<?php return ['host'=>'127.0.0.1','port'=>33384,'name'=>'"+db+"','user'=>'tamasya_sim','pass'=>'"+creds['password']+"'];",encoding='utf-8')
+  credential=private/(node+'-'+suffix+'-db.php');credential.write_text("<?php return ['host'=>'127.0.0.1','port'=>23384,'name'=>'"+db+"','user'=>'tamasya_sim','pass'=>'"+creds['password']+"'];",encoding='utf-8')
   keys=private/(node+'-'+suffix+'-keys.json');keys.write_text(json.dumps({'companyId':'transfer-fixture-company','propertyId':prop,'peers':{'transfer-hotel-'+peer:{'enabled':True,'secret':key}}}),encoding='utf-8')
   url='http://127.0.0.1:'+str(port);env={**baseenv,'APP_CREDENTIALS_FILE':str(credential),'APP_EXPECTED_DB_NAME':db,'APP_URL':url,'APP_ALLOWED_ORIGINS':url,'TAMASYA_PROPERTY_ID':prop,'TAMASYA_PROPERTY_CODE':code,'TAMASYA_COMPANY_ID':'transfer-fixture-company','TAMASYA_NODE_ID':'transfer-'+node,'TAMASYA_INTERPROPERTY_TRANSFER_ENABLED':'1','TAMASYA_INTERPROPERTY_KEYS_FILE':str(keys),'TAMASYA_HQ_BRIDGE_ENABLED':'0','TAMASYA_ENTERPRISE_CRM_CAMPAIGN_SEND_ENABLED':'0'}
   (private/(node+'-'+suffix+'-env.json')).write_text(json.dumps(env),encoding='utf-8')

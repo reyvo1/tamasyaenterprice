@@ -13,7 +13,7 @@ def sql(s):
  if r.returncode:raise RuntimeError(r.stderr)
  return r.stdout
 identity=sql('SELECT @@datadir,@@port;').strip().split('\t')
-assert Path(identity[0]).resolve()==(base/'mysql-data').resolve() and identity[1]=='33384'
+assert Path(identity[0]).resolve()==(base/'mysql-data').resolve() and identity[1]=='23384'
 sql('CREATE DATABASE tamasya_restore_sim CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;')
 dump=(base/'backups'/b['file']).read_text(encoding='utf8')
 assert not __import__('re').search(r'^USE\s|^CREATE DATABASE',dump,__import__('re').M|__import__('re').I)

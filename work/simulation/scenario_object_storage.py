@@ -34,10 +34,10 @@ class Store(BaseHTTPRequestHandler):
   except Exception:self.respond(403)
  do_PUT=perform
  do_GET=perform
-server=ThreadingHTTPServer(('127.0.0.1',38201),Store);context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.load_cert_chain(b/'tls-ca.pem',b/'tls-key.pem');server.socket=context.wrap_socket(server.socket,server_side=True);threading.Thread(target=server.serve_forever,daemon=True).start()
-token=(b/'hq-test-token').read_text();request=urllib.request.Request('http://127.0.0.1:38185/api.php?action=report-snapshot',data=json.dumps({'from':'2026-09-01','to':'2026-09-30','properties':['simulation-hotel']}).encode(),headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'})
+server=ThreadingHTTPServer(('127.0.0.1',28201),Store);context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.load_cert_chain(b/'tls-ca.pem',b/'tls-key.pem');server.socket=context.wrap_socket(server.socket,server_side=True);threading.Thread(target=server.serve_forever,daemon=True).start()
+token=(b/'hq-test-token').read_text();request=urllib.request.Request('http://127.0.0.1:28185/api.php?action=report-snapshot',data=json.dumps({'from':'2026-09-01','to':'2026-09-30','properties':['simulation-hotel']}).encode(),headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'})
 with urllib.request.urlopen(request) as r:reportid=json.load(r)['data']['reportId']
-config['objectStorage']={'enabled':True,'endpoint':'https://localhost:38201','region':'us-east-1','bucket':'staging-private','accessKey':access,'secretKey':secret}
+config['objectStorage']={'enabled':True,'endpoint':'https://localhost:28201','region':'us-east-1','bucket':'staging-private','accessKey':access,'secretKey':secret}
 env={**os.environ,'TAMASYA_HQ_CONFIG_FILE':str(b/'hq-config.json')}
 def run(bearer=token):return subprocess.run(['php','-d','curl.cainfo='+str(b/'tls-ca.pem'),'-d','openssl.cafile='+str(b/'tls-ca.pem'),str(b/'site/hq/archive_report.php')],input=json.dumps({'token':bearer,'reportId':reportid}),env=env,capture_output=True,text=True)
 try:

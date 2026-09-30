@@ -9,9 +9,9 @@ def check(name,ok):
     (root/'artifacts/telegram-simulator-results.json').write_text(json.dumps(results,indent=2))
     assert ok,name
 def api(action,data,auth=True):
-    headers={'Origin':'http://127.0.0.1:38189','X-Device-ID':'uat-telegram','Content-Type':'application/json','X-Tamasya-Operation-ID':'uat_'+secrets.token_hex(12)}
+    headers={'Origin':'http://127.0.0.1:28189','X-Device-ID':'uat-telegram','Content-Type':'application/json','X-Tamasya-Operation-ID':'uat_'+secrets.token_hex(12)}
     if auth and token:headers['Authorization']='Bearer '+token
-    req=urllib.request.Request('http://127.0.0.1:38189/api.php?action='+action,headers=headers,data=json.dumps(data).encode())
+    req=urllib.request.Request('http://127.0.0.1:28189/api.php?action='+action,headers=headers,data=json.dumps(data).encode())
     try:r=urllib.request.urlopen(req,timeout=90)
     except urllib.error.HTTPError as error:r=error
     return r.status,json.load(r)

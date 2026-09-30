@@ -4,11 +4,11 @@ import io,zipfile,xml.etree.ElementTree as ET
 
 e.logname='report-export-results.json'
 _,catalog=request('canonical-report-types')
-headers={'Authorization':'Bearer '+json.loads((base/'session.json').read_text())['token'],'X-Device-ID':'simulation-browser-01','Origin':'http://127.0.0.1:38184'}
+headers={'Authorization':'Bearer '+json.loads((base/'session.json').read_text())['token'],'X-Device-ID':'simulation-browser-01','Origin':'http://127.0.0.1:28184'}
 for typ in catalog['types']:
  _,snapshot=request('canonical-report&type='+typ+'&from=2026-01-01&to=2026-12-31')
  for fmt in ['csv','xlsx','pdf']:
-  req=urllib.request.Request('http://127.0.0.1:38184/api.php?action=canonical-report&type='+typ+'&from=2026-01-01&to=2026-12-31&format='+fmt,headers=headers)
+  req=urllib.request.Request('http://127.0.0.1:28184/api.php?action=canonical-report&type='+typ+'&from=2026-01-01&to=2026-12-31&format='+fmt,headers=headers)
   try:r=urllib.request.urlopen(req,timeout=90)
   except urllib.error.HTTPError as er:r=er
   raw=r.read();ok=r.status==200 and r.headers.get('X-Tamasya-Report-SHA256')==snapshot['meta']['checksumSha256']

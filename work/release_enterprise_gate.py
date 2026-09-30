@@ -13,7 +13,7 @@ for path in (work/'simulation').iterdir():
     if path.is_file() and path.suffix in ('.py','.php') and 'credentials' not in path.name:
         shutil.copy2(path,sim/path.name)
 credential=json.loads((sim/'credentials.json').read_text())
-(sim/'db_credentials.php').write_text("<?php return ['host'=>'127.0.0.1','port'=>33384,'name'=>'tamasya_sim','user'=>'tamasya_sim','pass'=>'"+credential['password']+"'];")
+(sim/'db_credentials.php').write_text("<?php return ['host'=>'127.0.0.1','port'=>23384,'name'=>'tamasya_sim','user'=>'tamasya_sim','pass'=>'"+credential['password']+"'];")
 
 def start(args, environment=env):
     log=open(sim/'logs/enterprise-gate-processes.log','ab')
@@ -41,26 +41,26 @@ def stop(pidfile, root):
     if b'-S' not in args or str(root).encode() not in args:raise RuntimeError('Unrecognized process')
     os.kill(pid,signal.SIGTERM);time.sleep(.2)
 try:
-    for port in [33384,38184,38185,38186,38187,38200]:
+    for port in [23384,28184,28185,28186,28187,28200]:
         try:
             with socket.create_connection(('127.0.0.1',port),timeout=.2):
                 raise RuntimeError('Port already occupied: '+str(port))
         except (ConnectionRefusedError, TimeoutError):pass
     start(['mysqld','--no-defaults','--datadir='+str(tmp/'data'),'--socket='+str(tmp/'mysql.sock'),
-           '--pid-file='+str(tmp/'mysql.pid'),'--port=33384','--bind-address=127.0.0.1','--mysqlx=OFF',
+           '--pid-file='+str(tmp/'mysql.pid'),'--port=23384','--bind-address=127.0.0.1','--mysqlx=OFF',
            '--skip-log-bin','--secure-file-priv='+str(tmp),'--log-error='+str(tmp/'mysql.log')])
-    ready(33384)
+    ready(23384)
     if '--currency-only' in sys.argv:
         script('scenario_currency.py')
         sys.exit(0)
-    start([sys.executable,str(sim/'hybrid_tls.py')]);ready(38186)
-    script('start_hybrid.py');ready(38184);ready(38185)
+    start([sys.executable,str(sim/'hybrid_tls.py')]);ready(28186)
+    script('start_hybrid.py');ready(28184);ready(28185)
     finishing='--finish' in sys.argv
     if not finishing:
         script('scenario_hybrid.py')
         script('scenario_hq_permissions.py')
     stop(sim/'php.pid',sim/'site');stop(sim/'hq-php.pid',sim/'site/hq')
-    script('start_enterprise.py');ready(38184);ready(38185);ready(38200)
+    script('start_enterprise.py');ready(28184);ready(28185);ready(28200)
     if finishing:
         env.update(json.loads((sim/'enterprise-environment.json').read_text()))
         for name in ['scenario_delivery.py','scenario_object_storage.py','scenario_hq_permissions.py']:

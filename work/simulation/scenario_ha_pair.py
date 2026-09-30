@@ -5,7 +5,7 @@ b=Path(__file__).resolve().parent;shutil.copytree(b.parent/'enterprise',b/'site'
 mysql=mysql_binary();args=[mysql,'--defaults-file='+str(b/'client.ini'),'--batch','--skip-column-names']
 def sql(statement):
  r=subprocess.run(args,input=statement,capture_output=True,text=True,encoding='utf-8');r.check_returncode();return r.stdout.strip()
-port,datadir=sql('SELECT @@port,@@datadir').split('\t');assert port=='33384' and Path(datadir).resolve()==(b/'mysql-data').resolve()
+port,datadir=sql('SELECT @@port,@@datadir').split('\t');assert port=='23384' and Path(datadir).resolve()==(b/'mysql-data').resolve()
 backup=json.loads((b/'logs/backup-result.json').read_text());dump=(b/'backups'/backup['file']).read_text(encoding='utf-8');assert not re.search(r'^USE\s|^CREATE DATABASE',dump,re.M|re.I)
 growthenv=json.loads((b.parent/'simulation-growth/environment.json').read_text(encoding='utf-8'));growthdb=growthenv['APP_EXPECTED_DB_NAME'];assert re.fullmatch(r'tamasya_growth_test_[a-f0-9]+',growthdb)
 r=subprocess.run([mysqldump_binary(),'--defaults-file='+str(b/'client.ini'),'--no-tablespaces','--single-transaction',growthdb],capture_output=True,text=True,encoding='utf-8');r.check_returncode();dump=r.stdout
@@ -20,12 +20,12 @@ def run(node,command):
  if r.returncode:raise RuntimeError((r.stdout+r.stderr)[-1800:])
  return json.loads(r.stdout)
 try:
- for node,port,peerport,peer in [('a',38190,38191,'b'),('b',38191,38190,'a')]:
+ for node,port,peerport,peer in [('a',28190,28191,'b'),('b',28191,28190,'a')]:
   name='tamasya_ha_test_'+node+'_'+suffix
   sql('CREATE DATABASE `'+name+'` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci; USE `'+name+'`;\n'+dump)
   sql("GRANT ALL ON `"+name+"`.* TO 'tamasya_sim'@'127.0.0.1';")
-  credential=b/('ha-'+node+'-credentials.php');credential.write_text("<?php return ['host'=>'127.0.0.1','port'=>33384,'name'=>'"+name+"','user'=>'tamasya_sim','pass'=>'"+creds['password']+"'];")
-  env={**baseenv,'APP_URL':f'http://127.0.0.1:{port}','APP_CREDENTIALS_FILE':str(credential),'APP_EXPECTED_DB_NAME':name,'NODE_CLUSTER_ENABLED':'1','TAMASYA_NODE_MODE':'flexible','NODE_SYNC_ENABLED':'1','TAMASYA_NODE_ID':'ha-'+node,'TAMASYA_CLUSTER_ID':'ha-test-'+suffix,'TAMASYA_NODE_ROLE':'online_primary' if node=='a' else 'local_backup','TAMASYA_NODE_INITIAL_ROLE':'primary' if node=='a' else 'standby','NODE_CLUSTER_PEER_ID':'ha-'+peer,'NODE_CLUSTER_PEER_URL':f'http://127.0.0.1:{peerport}','NODE_CLUSTER_PUBLIC_URL':f'http://127.0.0.1:{port}','NODE_SYNC_PRIMARY_URL':'http://127.0.0.1:38190','NODE_SYNC_SHARED_SECRET':secret,'NODE_CLUSTER_PROBE_BEFORE_WRITE':'0'}
+  credential=b/('ha-'+node+'-credentials.php');credential.write_text("<?php return ['host'=>'127.0.0.1','port'=>23384,'name'=>'"+name+"','user'=>'tamasya_sim','pass'=>'"+creds['password']+"'];")
+  env={**baseenv,'APP_URL':f'http://127.0.0.1:{port}','APP_CREDENTIALS_FILE':str(credential),'APP_EXPECTED_DB_NAME':name,'NODE_CLUSTER_ENABLED':'1','TAMASYA_NODE_MODE':'flexible','NODE_SYNC_ENABLED':'1','TAMASYA_NODE_ID':'ha-'+node,'TAMASYA_CLUSTER_ID':'ha-test-'+suffix,'TAMASYA_NODE_ROLE':'online_primary' if node=='a' else 'local_backup','TAMASYA_NODE_INITIAL_ROLE':'primary' if node=='a' else 'standby','NODE_CLUSTER_PEER_ID':'ha-'+peer,'NODE_CLUSTER_PEER_URL':f'http://127.0.0.1:{peerport}','NODE_CLUSTER_PUBLIC_URL':f'http://127.0.0.1:{port}','NODE_SYNC_PRIMARY_URL':'http://127.0.0.1:28190','NODE_SYNC_SHARED_SECRET':secret,'NODE_CLUSTER_PROBE_BEFORE_WRITE':'0'}
   env.update({'TAMASYA_NODE_KIND':'local','TAMASYA_ALLOWED_NODE_IDS':'ha-'+peer,'NODE_SYNC_ALLOW_HTTP_LOCAL':'1'})
   env['TAMASYA_COMPANY_ID']='growth-fixture-company'
   envs[node]=env;(b/('ha-'+node+'-environment.json')).write_text(json.dumps({k:v for k,v in env.items() if k.startswith(('APP_','TAMASYA_','NODE_'))}))

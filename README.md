@@ -6,7 +6,7 @@ Source baseline: RC2 build 20260929, packaged locally 2026-09-30. This public re
 
 895 local integration/artifact checks and 194 unit assertions passed before this repository was created. Those are historical RC2 evidence, **not proof that every button, role, domain or workflow has been browser-tested**. GitHub Actions runs fresh tests; only an actual completed run establishes its result.
 
-`Operational UAT evidence` executes fresh core/Growth/currency/interproperty/HA and HQ/worker/report/storage/delivery suites, followed by browser desktop/mobile and Telegram simulator tests. MySQL data is disposable and isolated on localhost:33384. Current browser scenarios cover Growth/Enterprise module navigation and PR draft creation/reload, not every UI operation.
+`Operational UAT evidence` executes fresh core/Growth/currency/interproperty/HA and HQ/worker/report/storage/delivery suites, followed by browser desktop/mobile and Telegram simulator tests. MySQL data is disposable and isolated on localhost:23384. Current browser scenarios cover Growth/Enterprise module navigation and PR draft creation/reload, not every UI operation.
 
 The coverage inventory deliberately preserves NOT_TESTED entries. Source discovery, page loads, tab clicks, HTTP 200, API regression and a successful job are not interchangeable with full operational acceptance. `artifacts/coverage-summary.md` documents the gap. No skip or absence of a failure is presented as a pass.
 

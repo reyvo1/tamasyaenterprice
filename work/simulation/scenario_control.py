@@ -10,7 +10,7 @@ env['TAMASYA_HQ_CONFIG_FILE']=str(b/'hq-installer.json')
 subprocess.run(['php',str(b/'site/hq/upgrade_h2.php'),'--apply-hq-only'],env=env,check=True)
 mysql=mysql_binary()
 sql="SELECT @@port;"+''.join(f"GRANT SELECT,INSERT,UPDATE ON tamasya_hq_h1_sim.{t} TO 'tamasya_hq_limited_sim'@'127.0.0.1';" for t in ['hq_companies','hq_properties','hq_principals'])+"GRANT SELECT,INSERT ON tamasya_hq_h1_sim.hq_control_audit TO 'tamasya_hq_limited_sim'@'127.0.0.1';"
-r=subprocess.run([mysql,'--defaults-file='+str(b/'client.ini'),'--batch','--skip-column-names'],input=sql,capture_output=True,text=True,check=True);assert r.stdout.strip()=='33384'
+r=subprocess.run([mysql,'--defaults-file='+str(b/'client.ini'),'--batch','--skip-column-names'],input=sql,capture_output=True,text=True,check=True);assert r.stdout.strip()=='23384'
 tokenfile=b/'control-test-token'
 if tokenfile.exists():root=tokenfile.read_text()
 else:
@@ -27,7 +27,7 @@ def check(name,condition):
  results.append({'name':name,'pass':bool(condition)})
  if not condition:raise AssertionError(name)
 def call(token,body=None,query='',api='control_api.php'):
- req=urllib.request.Request('http://127.0.0.1:38185/'+api+query,data=None if body is None else json.dumps(body).encode(),headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'})
+ req=urllib.request.Request('http://127.0.0.1:28185/'+api+query,data=None if body is None else json.dumps(body).encode(),headers={'Authorization':'Bearer '+token,'Content-Type':'application/json'})
  try:
   with urllib.request.urlopen(req,timeout=20) as r:return r.status,json.load(r)
  except urllib.error.HTTPError as e:return e.code,json.load(e)

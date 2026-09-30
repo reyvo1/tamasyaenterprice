@@ -31,7 +31,7 @@ mysql_temp = Path(tempfile.mkdtemp(prefix='tamasya-mysql-'))
 results = []
 password = secrets.token_hex(24)
 (sim / 'credentials.json').write_text(json.dumps({'user': 'tamasya_sim', 'password': password}))
-(sim / 'client.ini').write_text('[client]\nhost=127.0.0.1\nport=33384\nuser=root\npassword='+password+'\ndefault-character-set=utf8mb4\n')
+(sim / 'client.ini').write_text('[client]\nhost=127.0.0.1\nport=23384\nuser=root\npassword='+password+'\ndefault-character-set=utf8mb4\n')
 (sim / 'client.ini').chmod(0o600)
 
 def ready(port):
@@ -71,7 +71,7 @@ def sql(statement, initial=False):
     if result.returncode: raise RuntimeError(result.stderr)
 
 try:
-    for port in [33384, 38184, 38185, 38186, 38189, 38190, 38191, 38192, 38193, 38194, 38200]:
+    for port in [23384, 28184, 28185, 28186, 28189, 28190, 28191, 28192, 28193, 28194, 28200]:
         with socket.socket() as probe:
             probe.bind(('127.0.0.1', port))
     data = mysql_temp / 'data'
@@ -82,14 +82,14 @@ try:
                     '--log-error='+str(mysql_temp/'mysql-init.log')], check=True)
     mysql = subprocess.Popen(['mysqld', '--no-defaults', '--datadir='+str(data),
         '--socket='+str(mysql_temp/'mysql.sock'), '--pid-file='+str(mysql_temp/'mysql.pid'),
-        '--port=33384', '--bind-address=127.0.0.1', '--mysqlx=OFF', '--skip-log-bin',
+        '--port=23384', '--bind-address=127.0.0.1', '--mysqlx=OFF', '--skip-log-bin',
         '--secure-file-priv='+str(mysql_temp), '--log-error='+str(mysql_temp/'mysql.log')])
     children.append(mysql)
-    ready(33384)
+    ready(23384)
     sql("ALTER USER 'root'@'localhost' IDENTIFIED BY '"+password+"'; CREATE USER 'root'@'127.0.0.1' IDENTIFIED BY '"+password+"'; GRANT ALL ON *.* TO 'root'@'127.0.0.1' WITH GRANT OPTION; CREATE USER 'tamasya_sim'@'127.0.0.1' IDENTIFIED BY '"+password+"'; GRANT ALL ON tamasya_sim.* TO 'tamasya_sim'@'127.0.0.1';", initial=True)
     script('run_final.py')
     script('prepare_growth_fixture.py')
-    ready(38189)
+    ready(28189)
     script('growth_client.py')
     script('run_growth_complete.py')
     script('scenario_currency.py')

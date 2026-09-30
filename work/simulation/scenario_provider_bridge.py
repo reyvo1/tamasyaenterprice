@@ -17,7 +17,7 @@ db=env['APP_EXPECTED_DB_NAME'];assert db.startswith('tamasya_growth_test_')
 args=[mysql_binary(),'--defaults-file='+str(b/'client.ini'),'--batch','--skip-column-names',db]
 def sql(q):
  r=subprocess.run(args,input=q,capture_output=True,text=True,encoding='utf-8');r.check_returncode();return r.stdout.strip()
-assert sql('SELECT @@port')=='33384'
+assert sql('SELECT @@port')=='23384'
 before=sql('SELECT (SELECT COUNT(*) FROM transactions),(SELECT COUNT(*) FROM bookings),(SELECT COUNT(*) FROM journal_entries)')
 now=int(time.time());ids={}
 for kind in ['payment','channel']:
