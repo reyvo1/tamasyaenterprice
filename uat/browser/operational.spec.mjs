@@ -198,9 +198,10 @@ test('Enterprise procurement: PR, PO, GRN and supplier invoice posting persist',
     await expect(action).toBeVisible();await expect(action).toBeEnabled();
     await expect(page.locator('#loading')).toBeHidden();
     await action.evaluate(el=>el.scrollIntoView({block:'center',inline:'center'}));
-    fs.writeFileSync(`artifacts/browser-po-stage-${info.project.name}.json`,JSON.stringify({stage:`before-${status}`,buttonVisible:await action.isVisible(),buttonEnabled:await action.isEnabled(),loadingHidden:await page.locator('#loading').isHidden()}));
+    const target=await action.evaluate(el=>{const r=el.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,hit=document.elementFromPoint(x,y);return{centerX:Math.round(x),centerY:Math.round(y),viewportWidth:innerWidth,viewportHeight:innerHeight,centerHitsButton:hit===el||el.contains(hit),hitTag:hit?.tagName||null,hitId:hit?.id||null}});
+    fs.writeFileSync(`artifacts/browser-po-stage-${info.project.name}.json`,JSON.stringify({stage:`before-${status}`,buttonVisible:await action.isVisible(),buttonEnabled:await action.isEnabled(),loadingHidden:await page.locator('#loading').isHidden(),target}));
     const posted=page.waitForResponse(r=>r.url().includes('action=growth-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('po-status'));
-    await action.click({timeout:15000});
+    if(info.project.name==='mobile')await action.tap({timeout:15000});else await action.click({timeout:15000});
     const update=await posted,body=await update.json();
     expect(update.status()).toBe(200);expect(body.success).toBe(true);expect(body.data.status).toBe(status);
     await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toContainText(status);
