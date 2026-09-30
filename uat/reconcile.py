@@ -87,15 +87,6 @@ controls('enterprise-suite.html', pr, 'BEHAVIOR_VERIFIED',
           '#sinv-qty', '#sinv-price'))
 controls('enterprise-suite.html', pr, 'UI_RESULT_VERIFIED', ('#sinv-vendor',))
 
-crm = 'Enterprise CRM: consent gating, loyalty points exact balance and voucher persistence across reload'
-controls('enterprise-suite.html', crm, 'BEHAVIOR_VERIFIED',
-         ('#guest-q', '#guest-search', '#consent-form', '#consent-type', '#consent-status',
-          '#consent-evidence', '#points-form', '#points-value', '#points-reason',
-          '#voucher-form', '#voucher-type', '#voucher-value', '#voucher-min',
-          '#voucher-from', '#voucher-until', '#voucher-notes'))
-controls('enterprise-suite.html', crm, 'UI_RESULT_VERIFIED',
-         ('#consent-guest', '#points-guest', '#voucher-guest', '#loyalty-detail', '#voucher-list'))
-
 # These stable static tab selectors are credited only when both project artifacts
 # explicitly record the panel visible; the controls inside remain unverified.
 for file in ('growth-suite.html', 'enterprise-suite.html'):
