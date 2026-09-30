@@ -268,6 +268,13 @@ test('Enterprise procurement: PR, PO, GRN and supplier invoice posting persist',
 test('Enterprise CRM: consent, loyalty points and voucher depend on each other and persist',async({page},info)=>{
   await page.goto('/enterprise-suite.html');
   await expect(page.locator('#loading')).toBeHidden();
+  // `boot()` fires loadForecast() and loadAccounting() without awaiting them, and
+  // both grow their result boxes. That keeps reflowing the CRM panel below, and
+  // Playwright's actionability check never sees a stable bounding box — which is
+  // why both tap() and click() hung on mobile while elementFromPoint still
+  // reported the button. Wait for the outstanding requests before interacting.
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator('#loading')).toBeHidden();
 
   // The guest profile is a PRECONDITION created through the API, because no UI
   // creates one. It must be seeded from inside the page: `issueSessionTokens()`
