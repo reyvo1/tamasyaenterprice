@@ -235,12 +235,15 @@ test('POS cash sale and void: receipt, history and stock reversal persist',async
   const saleBody=await saleResponse.json();
   expect(saleBody.success).toBe(true);
   expect(saleBody.sale.status).toBe('posted');
+  expect(saleBody.sale.paymentMethod).toBe('cash');
+  expect(Number(saleBody.sale.grossAmount)).toBe(2000);
   const receipt=saleBody.sale.receiptNumber;
   await expect(page.locator('#receipt-dialog')).toBeVisible();
   await expect(page.locator('#receipt-content')).toContainText(receipt);
   await page.locator('#close-receipt').click();
   await page.locator('[data-view="products"]').click();
   const productRow=page.locator('#products-table tr').filter({hasText:sku});
+  await expect(productRow.locator('td').nth(3)).toContainText('1.000');
   await expect(productRow.locator('td').nth(4)).toContainText('4 pcs');
   await page.locator('[data-view="sales"]').click();
   const listed=page.waitForResponse(r=>r.url().includes('action=pos-sales'));
@@ -256,6 +259,7 @@ test('POS cash sale and void: receipt, history and stock reversal persist',async
   await expect(saleRow).toContainText('voided');
   await page.reload();
   await page.locator('[data-view="products"]').click();
+  await expect(page.locator('#products-table tr').filter({hasText:sku}).locator('td').nth(3)).toContainText('1.000');
   await expect(page.locator('#products-table tr').filter({hasText:sku}).locator('td').nth(4)).toContainText('5 pcs');
   await page.locator('[data-view="sales"]').click();
   const reloaded=page.waitForResponse(r=>r.url().includes('action=pos-sales'));

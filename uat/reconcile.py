@@ -66,6 +66,11 @@ controls('pos.html', pos, 'BEHAVIOR_VERIFIED',
 controls('pos.html', pos, 'UI_RESULT_VERIFIED',
          ('#add-product-btn', '#cancel-product-dialog', '#product-search',
           '#clear-cart', '#checkout-btn'))
+sale = 'POS cash sale and void: receipt, history and stock reversal persist'
+controls('pos.html', sale, 'BEHAVIOR_VERIFIED',
+         ('#checkout-btn', '#payment-method', '#product-price', '#product-cost',
+          '#product-initial-stock'))
+controls('pos.html', sale, 'UI_RESULT_VERIFIED', ('#load-sales', '#close-receipt'))
 
 pr = 'Enterprise purchase request: draft, submit, approval and reload'
 controls('enterprise-suite.html', pr, 'BEHAVIOR_VERIFIED',
