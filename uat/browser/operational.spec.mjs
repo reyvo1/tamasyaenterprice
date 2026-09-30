@@ -303,17 +303,37 @@ test('Enterprise CRM: consent, loyalty points and voucher depend on each other a
   const row=page.locator('#guest-results tr').filter({hasText:`${stamp} Guest`});
   await expect(row).toHaveCount(1);
 
-  const selectGuest=async()=>{
+  // Mobile has repeatedly failed a bare tap() on a control that sits inside a
+  // server-rendered table row: the element is visible but its centre is not
+  // hit-testable at the 390px viewport. Assert the preconditions, scroll it to
+  // the middle, and record what is actually at the tap point instead of
+  // guessing.
+  const record=stage=>{
+    const file=`artifacts/browser-crm-diagnostic-${info.project.name}.json`;
+    let prior={};
+    try{prior=JSON.parse(fs.readFileSync(file,'utf8'));}catch{}
+    return data=>fs.writeFileSync(file,JSON.stringify({...prior,...data,stage}));
+  };
+  const tapOrClick=async(locator,label)=>{
+    await expect(locator).toBeVisible();
+    await expect(locator).toBeEnabled();
+    await expect(page.locator('#loading')).toBeHidden();
+    await locator.evaluate(el=>el.scrollIntoView({block:'center',inline:'center'}));
+    const target=await locator.evaluate(el=>{const r=el.getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2,hit=document.elementFromPoint(x,y);return{centerX:Math.round(x),centerY:Math.round(y),viewportWidth:innerWidth,viewportHeight:innerHeight,centerHitsButton:hit===el||el.contains(hit),hitTag:hit?.tagName||null,hitId:hit?.id||null}});
+    record({stage:`before-${label}`,...target})(target);
+    if(info.project.name==='mobile')await locator.tap({timeout:15000});else await locator.click({timeout:15000});
+  };
+
+  const selectGuest=async(label)=>{
     const detail=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.url().includes('command=loyalty-detail'));
-    const pick=row.getByRole('button',{name:'Pilih'});
-    if(info.project.name==='mobile')await pick.tap({timeout:15000});else await pick.click({timeout:15000});
+    await tapOrClick(row.getByRole('button',{name:'Pilih'}),label);
     expect((await detail).status()).toBe(200);
     // Selecting a guest is the only thing that populates the three downstream forms.
     await expect(page.locator('#consent-guest')).toHaveValue(guestId);
     await expect(page.locator('#points-guest')).toHaveValue(guestId);
     await expect(page.locator('#voucher-guest')).toHaveValue(guestId);
   };
-  await selectGuest();
+  await selectGuest('first-selection');
   await expect(page.locator('#loyalty-detail')).toContainText('Belum menjadi member');
   await expect(page.locator('#loyalty-detail')).toContainText('Poin: 0');
 
@@ -393,8 +413,7 @@ test('Enterprise CRM: consent, loyalty points and voucher depend on each other a
   await page.locator('#guest-search').click();
   await reloadedSearch;
   const reloadDetail=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.url().includes('command=loyalty-detail'));
-  const reloadedPick=page.locator('#guest-results tr').filter({hasText:`${stamp} Guest`}).getByRole('button',{name:'Pilih'});
-  if(info.project.name==='mobile')await reloadedPick.tap({timeout:15000});else await reloadedPick.click({timeout:15000});
+  await tapOrClick(page.locator('#guest-results tr').filter({hasText:`${stamp} Guest`}).getByRole('button',{name:'Pilih'}),'after-reload');
   await reloadDetail;
   await expect(page.locator('#loyalty-detail')).toContainText('Poin: 250');
   await expect(page.locator('#loyalty-detail')).toContainText('Consent records: 2');
