@@ -205,3 +205,36 @@ test('POS: every tab, product draft cancel, creation, search and cart clear',asy
   expect(errors).toEqual([]);
   fs.writeFileSync(`artifacts/browser-pos-${info.project.name}.json`,JSON.stringify({test:'POS navigation, cancel, persist product, search and clear cart',pass:true,sku,scope:'No completed sale, refund or device printing claimed'}));
 });
+test('PMS interactive login: credentials, session and reload',async({browser},info)=>{
+  const mobile=info.project.name==='mobile';
+  const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:1000},
+    isMobile:mobile,hasTouch:mobile,serviceWorkers:'block'});
+  try{
+    await context.route('**/*',route=>{
+      const url=new URL(route.request().url());
+      return ['127.0.0.1','localhost'].includes(url.hostname)?route.continue():route.abort();
+    });
+    const loginPage=await context.newPage();
+    await loginPage.goto(base+'/index.html');
+    const username=loginPage.getByPlaceholder('Contoh: admin, reps, finance, manager');
+    const password=loginPage.getByPlaceholder('Masukkan password Anda...');
+    const submit=loginPage.getByRole('button',{name:'Masuk ke Konsol'});
+    await expect(username).toBeVisible();
+    await expect(password).toBeVisible();
+    await username.fill(env.APP_BOOTSTRAP_ADMIN_USERNAME);
+    await password.fill(env.APP_BOOTSTRAP_ADMIN_PASSWORD);
+    const completed=loginPage.waitForResponse(r=>r.url().includes('action=login')||r.url().endsWith('/api/login'));
+    await submit.click();
+    const response=await completed;
+    expect(response.status()).toBe(200);
+    expect((await response.json()).token).toBeTruthy();
+    await expect.poll(()=>loginPage.evaluate(()=>Boolean(sessionStorage.getItem('hotel_session_token')))).toBe(true);
+    await expect(submit).toBeHidden();
+    await loginPage.reload();
+    await expect(submit).toBeHidden();
+    await expect.poll(()=>loginPage.evaluate(()=>Boolean(sessionStorage.getItem('hotel_session_token')))).toBe(true);
+    fs.writeFileSync(`artifacts/browser-login-${info.project.name}.json`,JSON.stringify({test:'interactive PMS login and session reload',pass:true,scope:'Positive admin login only; 2FA, lockout and password recovery not claimed'}));
+  }finally{
+    await context.close();
+  }
+});
