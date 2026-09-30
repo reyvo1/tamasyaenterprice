@@ -1,7 +1,7 @@
 import {defineConfig} from '@playwright/test';
 export default defineConfig({
   testDir:'./uat/browser',timeout:60000,expect:{timeout:15000},workers:1,retries:0,
-  reporter:[['list']],outputDir:'test-results',
+  reporter:[['list'],['./uat/browser-reporter.mjs']],outputDir:'test-results',
   use:{baseURL:'http://127.0.0.1:28189',browserName:'chromium',
     launchOptions:process.env.TAMASYA_UAT_CHROME?{executablePath:process.env.TAMASYA_UAT_CHROME}:{},
     trace:'off',video:'off',screenshot:'off',serviceWorkers:'block'},
