@@ -150,7 +150,7 @@ test('Multi-property snapshot: download aggregate, queue locally and reload outb
   await expect(page.locator('#outbox-result')).toContainText(operation);
   fs.writeFileSync(`artifacts/browser-snapshot-${info.project.name}.json`,JSON.stringify({test:'aggregate snapshot download and durable local outbox queue/reload',pass:true,scope:'No delivery to HQ and no ACK claimed'}));
 });
-test('Enterprise procurement: PR approval, PO approval and GRN posting persist',async({page,request},info)=>{
+test('Enterprise procurement: PR, PO, GRN and supplier invoice posting persist',async({page,request},info)=>{
   await page.goto('/enterprise-suite.html');await expect(page.locator('#loading')).toBeHidden();
   await page.locator('[data-tab="ap"]').click();
   const item=`UAT browser ${info.project.name} ${Date.now()}`;
@@ -228,7 +228,34 @@ test('Enterprise procurement: PR approval, PO approval and GRN posting persist',
   await page.reload();await expect(page.locator('#loading')).toBeHidden();await page.locator('[data-tab="ap"]').click();
   await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toContainText('received');
   await expect(page.locator('#sinv-grn')).toContainText(grn.grn_number);
-  fs.writeFileSync(`artifacts/browser-pr-${info.project.name}.json`,JSON.stringify({test:'browser PR-to-PO-to-GRN lifecycle',pass:true,requestId:d.data.request.id,poId:po.id,grnId:grn.id,scope:'PR, PO and GRN UI lifecycle in fixture; no supplier invoice/AP payment or linked physical stock mutation claimed'}));
+  await page.locator('#sinv-po').selectOption(po.id);
+  await expect(page.locator('#sinv-po-item option')).not.toHaveCount(1);
+  await page.locator('#sinv-po-item').selectOption({index:1});
+  await page.locator('#sinv-grn').selectOption(grn.id);
+  await expect(page.locator('#sinv-vendor')).toHaveValue(po.vendor_id);
+  const invoiceNumber=`UAT-${info.project.name}-${Date.now()}`;
+  await page.locator('#sinv-number').fill(invoiceNumber);
+  await page.locator('#sinv-item').fill(item);
+  await page.locator('#sinv-qty').fill('2');
+  await page.locator('#sinv-price').fill('12000');
+  const invoiceSaved=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('supplier-invoice-save'));
+  await page.locator('#supplier-invoice-form button[type="submit"]').click();
+  const invoiceResponse=await invoiceSaved,invoiceBody=await invoiceResponse.json();
+  expect(invoiceResponse.status()).toBe(200);expect(invoiceBody.success).toBe(true);
+  const invoice=invoiceBody.data.invoice;
+  expect(invoice.status).toBe('draft');expect(Number(invoice.total_amount)).toBe(24000);
+  await expect(page.locator('#sinv-list tr').filter({hasText:invoiceNumber})).toContainText('draft');
+  page.once('dialog',dialog=>dialog.accept());
+  const invoicePosted=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('supplier-invoice-post'));
+  await page.locator('#sinv-list tr').filter({hasText:invoiceNumber}).getByRole('button',{name:'Post'}).click();
+  const postedInvoiceResponse=await invoicePosted,postedInvoice=await postedInvoiceResponse.json();
+  expect(postedInvoiceResponse.status()).toBe(200);expect(postedInvoice.success).toBe(true);
+  expect(postedInvoice.data.invoice.status).toBe('posted');
+  expect(postedInvoice.canonicalAccrualTransactionIds).toHaveLength(1);
+  await expect(page.locator('#sinv-list tr').filter({hasText:invoiceNumber})).toContainText('posted');
+  await page.reload();await expect(page.locator('#loading')).toBeHidden();await page.locator('[data-tab="ap"]').click();
+  await expect(page.locator('#sinv-list tr').filter({hasText:invoiceNumber})).toContainText('posted');
+  fs.writeFileSync(`artifacts/browser-pr-${info.project.name}.json`,JSON.stringify({test:'browser PR-to-PO-to-GRN-to-supplier-invoice lifecycle',pass:true,requestId:d.data.request.id,poId:po.id,grnId:grn.id,invoiceId:invoice.id,scope:'PR, PO, GRN and invoice accrual UI lifecycle in fixture; no AP payment or linked physical stock mutation claimed'}));
 });
 
 test('POS: every tab, product draft cancel, creation, search and cart clear',async({page},info)=>{
