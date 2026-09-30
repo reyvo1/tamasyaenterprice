@@ -74,6 +74,11 @@ controls('pos.html', sale, 'UI_RESULT_VERIFIED', ('#load-sales', '#close-receipt
 stock = 'POS stock adjustment: add, subtract and persisted reload'
 controls('pos.html', stock, 'BEHAVIOR_VERIFIED',
          ('#stock-form', '#stock-product', '#stock-delta', '#stock-reason'))
+category = 'POS categories: create, reset, edit, toggle and persisted reload'
+controls('pos.html', category, 'BEHAVIOR_VERIFIED',
+         ('#category-form', '#category-name', '#save-category'))
+controls('pos.html', category, 'UI_RESULT_VERIFIED',
+         ('#manage-categories-btn', '#reset-category-form', '#cancel-category-dialog'))
 
 pr = 'Enterprise purchase request: draft, submit, approval and reload'
 controls('enterprise-suite.html', pr, 'BEHAVIOR_VERIFIED',

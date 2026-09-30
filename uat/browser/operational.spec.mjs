@@ -307,6 +307,55 @@ test('POS stock adjustment: add, subtract and persisted reload',async({page},inf
   await expect(page.locator('#products-table tr').filter({hasText:sku}).locator('td').nth(4)).toContainText('6 pcs');
   fs.writeFileSync(`artifacts/browser-pos-stock-${info.project.name}.json`,JSON.stringify({test:'POS positive/negative stock adjustment and persisted balance',pass:true,scope:'Stock audit and permission matrix not yet claimed as browser-tested'}));
 });
+test('POS categories: create, reset, edit, toggle and persisted reload',async({page},info)=>{
+  await page.goto('/pos.html');
+  await expect(page.locator('#product-grid [data-product]').first()).toBeVisible();
+  await page.locator('[data-view="products"]').click();
+  await page.locator('#manage-categories-btn').click();
+  await expect(page.locator('#category-dialog')).toBeVisible();
+  const name=`UAT category ${info.project.name} ${Date.now()}`;
+  const updated=`${name} updated`;
+  const save=async()=>{
+    const posted=page.waitForResponse(r=>r.url().includes('action=pos-category-save')&&r.request().method()==='POST');
+    await page.locator('#save-category').click();
+    const response=await posted;
+    expect(response.status()).toBe(200);
+    expect((await response.json()).success).toBe(true);
+  };
+  await page.locator('#category-name').fill(name);
+  await save();
+  await expect(page.locator('#categories-table tr').filter({hasText:name})).toHaveCount(1);
+  await page.reload();
+  await page.locator('[data-view="products"]').click();
+  await page.locator('#manage-categories-btn').click();
+  const row=page.locator('#categories-table tr').filter({hasText:name});
+  await expect(row).toHaveCount(1);
+  await row.getByRole('button',{name:'Edit'}).click();
+  await expect(page.locator('#category-name')).toHaveValue(name);
+  await page.locator('#reset-category-form').click();
+  await expect(page.locator('#category-name')).toHaveValue('');
+  await row.getByRole('button',{name:'Edit'}).click();
+  await page.locator('#category-name').fill(updated);
+  await save();
+  const updatedRow=page.locator('#categories-table tr').filter({hasText:updated});
+  await expect(updatedRow).toHaveCount(1);
+  page.on('dialog',dialog=>dialog.accept());
+  const disabled=page.waitForResponse(r=>r.url().includes('action=pos-category-save')&&r.request().method()==='POST');
+  await updatedRow.getByRole('button',{name:'Nonaktifkan'}).click();
+  expect((await disabled).status()).toBe(200);
+  await expect(updatedRow.locator('td').nth(3)).toHaveText('Nonaktif');
+  const enabled=page.waitForResponse(r=>r.url().includes('action=pos-category-save')&&r.request().method()==='POST');
+  await updatedRow.getByRole('button',{name:'Aktifkan'}).click();
+  expect((await enabled).status()).toBe(200);
+  await expect(updatedRow.locator('td').nth(3)).toHaveText('Aktif');
+  await page.locator('#cancel-category-dialog').click();
+  await expect(page.locator('#category-dialog')).toBeHidden();
+  await page.reload();
+  await page.locator('[data-view="products"]').click();
+  await page.locator('#manage-categories-btn').click();
+  await expect(page.locator('#categories-table tr').filter({hasText:updated}).locator('td').nth(3)).toHaveText('Aktif');
+  fs.writeFileSync(`artifacts/browser-pos-category-${info.project.name}.json`,JSON.stringify({test:'POS category lifecycle through UI and persisted reload',pass:true,scope:'Category with no products; delete and category-in-use guard not claimed'}));
+});
 test('PMS interactive login: credentials, session and reload',async({browser},info)=>{
   const mobile=info.project.name==='mobile';
   const context=await browser.newContext({viewport:mobile?{width:390,height:844}:{width:1440,height:1000},
