@@ -38,6 +38,25 @@ for(const file of ['growth-suite.html','enterprise-suite.html']){
     fs.writeFileSync(`artifacts/browser-${info.project.name}-${file}.json`,JSON.stringify(evidence,null,2));
   });
 }
+for(const [file,marker] of [
+  ['index.html','#root > *'],
+  ['property-setup.html','h1'],
+  ['interproperty-transfer.html','#status'],
+  ['multi-property-foundation.html','h1'],
+  ['hq/index.html','#login-form'],
+  ['hq/control.html','#login-form'],
+  ['webpublic/index.html','#root > *'],
+]){
+  test(`${file}: entrypoint renders without a browser exception`,async({page},info)=>{
+    const errors=[];page.on('pageerror',error=>errors.push(error.message));
+    const response=await page.goto('/'+file);
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(marker).first()).toBeVisible();
+    expect(errors).toEqual([]);
+    const name=file.replaceAll('/','-');
+    fs.writeFileSync(`artifacts/browser-entry-${info.project.name}-${name}.json`,JSON.stringify({page:file,assertion:'entrypoint rendered; no browser exception',pass:true,scope:'Navigation only; control behavior and live endpoints not verified'}));
+  });
+}
 test('Enterprise purchase request: draft, submit, approval and reload',async({page,request},info)=>{
   await page.goto('/enterprise-suite.html');await expect(page.locator('#loading')).toBeHidden();
   await page.locator('[data-tab="ap"]').click();
