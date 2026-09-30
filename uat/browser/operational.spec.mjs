@@ -117,6 +117,39 @@ test('Multi-property readiness: read-only buttons render their server results',a
   await expect(page.locator('#outbox-result')).toContainText('job;');
   fs.writeFileSync(`artifacts/browser-multi-property-${info.project.name}.json`,JSON.stringify({test:'multi-property overview, preview, manifest, capabilities and outbox read-only buttons',pass:true,scope:'Snapshot download/queue/push and dynamic outbox actions not claimed'}));
 });
+test('Multi-property snapshot: download aggregate, queue locally and reload outbox',async({page},info)=>{
+  await page.goto('/multi-property-foundation.html');
+  await expect(page.locator('#status-cards .card')).toHaveCount(5);
+  const [snapshotResponse,download]=await Promise.all([
+    page.waitForResponse(r=>r.url().includes('action=multi-property')&&r.url().includes('command=snapshot-v3')),
+    page.waitForEvent('download'),
+    page.locator('#snapshot-v2').click(),
+  ]);
+  expect(snapshotResponse.status()).toBe(200);
+  const apiSnapshot=(await snapshotResponse.json()).data;
+  const savedSnapshot=JSON.parse(fs.readFileSync(await download.path(),'utf8'));
+  expect(savedSnapshot).toEqual(apiSnapshot);
+  expect(savedSnapshot.contractVersion).toBe('tamasya-hq-snapshot-v3');
+  expect(savedSnapshot.checksumSha256).toMatch(/^[a-f0-9]{64}$/);
+  expect(savedSnapshot).not.toHaveProperty('bookings');
+  expect(savedSnapshot).not.toHaveProperty('guests');
+  const queued=page.waitForResponse(r=>r.url().includes('action=multi-property')&&r.request().method()==='POST'&&r.request().postData()?.includes('queue-snapshot'));
+  await page.locator('#queue-snapshot').click();
+  const queueResponse=await queued;
+  expect(queueResponse.status()).toBe(202);
+  const queueBody=await queueResponse.json();
+  expect(queueBody.success).toBe(true);
+  expect(queueBody.data.status).toBe('pending');
+  const operation=queueBody.data.operation_id;
+  expect(operation).toMatch(/^hq-/);
+  await expect(page.locator('#outbox-result')).toContainText(operation);
+  await page.reload();
+  const listed=page.waitForResponse(r=>r.url().includes('action=multi-property')&&r.url().includes('command=outbox'));
+  await page.locator('#outbox').click();
+  expect((await listed).status()).toBe(200);
+  await expect(page.locator('#outbox-result')).toContainText(operation);
+  fs.writeFileSync(`artifacts/browser-snapshot-${info.project.name}.json`,JSON.stringify({test:'aggregate snapshot download and durable local outbox queue/reload',pass:true,scope:'No delivery to HQ and no ACK claimed'}));
+});
 test('Enterprise purchase request: draft, submit, approval and reload',async({page,request},info)=>{
   await page.goto('/enterprise-suite.html');await expect(page.locator('#loading')).toBeHidden();
   await page.locator('[data-tab="ap"]').click();
