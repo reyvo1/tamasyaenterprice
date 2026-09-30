@@ -150,7 +150,7 @@ test('Multi-property snapshot: download aggregate, queue locally and reload outb
   await expect(page.locator('#outbox-result')).toContainText(operation);
   fs.writeFileSync(`artifacts/browser-snapshot-${info.project.name}.json`,JSON.stringify({test:'aggregate snapshot download and durable local outbox queue/reload',pass:true,scope:'No delivery to HQ and no ACK claimed'}));
 });
-test('Enterprise purchase request: draft, submit, approval and reload',async({page,request},info)=>{
+test('Enterprise procurement: PR approval, PO approval and GRN posting persist',async({page,request},info)=>{
   await page.goto('/enterprise-suite.html');await expect(page.locator('#loading')).toBeHidden();
   await page.locator('[data-tab="ap"]').click();
   const item=`UAT browser ${info.project.name} ${Date.now()}`;
@@ -174,7 +174,55 @@ test('Enterprise purchase request: draft, submit, approval and reload',async({pa
   }
   await page.reload();await expect(page.locator('#loading')).toBeHidden();await page.locator('[data-tab="ap"]').click();
   await expect(page.locator('#pr-list tr').filter({hasText:d.data.request.pr_number})).toContainText('approved');
-  fs.writeFileSync(`artifacts/browser-pr-${info.project.name}.json`,JSON.stringify({test:'browser PR draft, submit, approval and reload',pass:true,requestId:d.data.request.id,scope:'PR lifecycle through approval; downstream PO/AP not claimed as UI-tested'}));
+  await page.locator('#pr-list tr').filter({hasText:d.data.request.pr_number}).getByRole('button',{name:'Detail'}).click();
+  await expect(page.locator('#pr-to-po')).toBeVisible();
+  await expect(page.locator('#pr-vendor option')).not.toHaveCount(1);
+  await page.locator('#pr-vendor').selectOption({index:1});
+  const created=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('po-create-from-pr'));
+  await page.locator('#pr-to-po').click();
+  const poResponse=await created,poBody=await poResponse.json();
+  expect(poResponse.status()).toBe(200);expect(poBody.success).toBe(true);
+  const po=poBody.data;
+  expect(po.status).toBe('draft');expect(Number(po.total_amount)).toBeGreaterThan(0);
+  await expect(page.locator('#loading')).toBeHidden();
+  await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toContainText('draft');
+
+  await page.goto('/growth-suite.html');await expect(page.locator('#loading')).toBeHidden();
+  await page.locator('[data-tab="procurement"]').click();
+  for(const [button,status] of [['Submit','submitted'],['Approve','approved']]){
+    const posted=page.waitForResponse(r=>r.url().includes('action=growth-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('po-status'));
+    await page.locator('#po-list tr').filter({hasText:po.po_number}).getByRole('button',{name:button,exact:true}).click();
+    const update=await posted,body=await update.json();
+    expect(update.status()).toBe(200);expect(body.success).toBe(true);expect(body.data.status).toBe(status);
+    await expect(page.locator('#loading')).toBeHidden();
+    await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toContainText(status);
+  }
+  await page.reload();await expect(page.locator('#loading')).toBeHidden();await page.locator('[data-tab="procurement"]').click();
+  await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toContainText('approved');
+
+  await page.goto('/enterprise-suite.html');await expect(page.locator('#loading')).toBeHidden();await page.locator('[data-tab="ap"]').click();
+  await page.locator('#po-list tr').filter({hasText:po.po_number}).getByRole('button',{name:'Buat GRN'}).click();
+  await expect(page.locator('#grn-work')).toContainText(item);
+  await expect(page.locator('[data-grn-item]')).toHaveValue('2');
+  const drafted=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('grn-save'));
+  await page.locator('#create-grn-now').click();
+  const grnResponse=await drafted,grnBody=await grnResponse.json();
+  expect(grnResponse.status()).toBe(200);expect(grnBody.success).toBe(true);
+  expect(grnBody.data.receipt.status).toBe('draft');
+  const grn=grnBody.data.receipt;
+  await expect(page.locator('#grn-work')).toContainText(grn.grn_number);
+  const posted=page.waitForResponse(r=>r.url().includes('action=enterprise-suite')&&r.request().method()==='POST'&&r.request().postData()?.includes('grn-post'));
+  await page.locator('#post-grn-now').click();
+  const postedResponse=await posted,postedBody=await postedResponse.json();
+  expect(postedResponse.status()).toBe(200);expect(postedBody.success).toBe(true);
+  expect(postedBody.data.receipt.status).toBe('posted');
+  await expect(page.locator('#loading')).toBeHidden();
+  await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toContainText('received');
+  await expect(page.locator('#sinv-grn')).toContainText(grn.grn_number);
+  await page.reload();await expect(page.locator('#loading')).toBeHidden();await page.locator('[data-tab="ap"]').click();
+  await expect(page.locator('#po-list tr').filter({hasText:po.po_number})).toContainText('received');
+  await expect(page.locator('#sinv-grn')).toContainText(grn.grn_number);
+  fs.writeFileSync(`artifacts/browser-pr-${info.project.name}.json`,JSON.stringify({test:'browser PR-to-PO-to-GRN lifecycle',pass:true,requestId:d.data.request.id,poId:po.id,grnId:grn.id,scope:'PR, PO and GRN UI lifecycle in fixture; no supplier invoice/AP payment or linked physical stock mutation claimed'}));
 });
 
 test('POS: every tab, product draft cancel, creation, search and cart clear',async({page},info)=>{

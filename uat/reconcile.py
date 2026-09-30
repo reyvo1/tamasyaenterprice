@@ -80,9 +80,10 @@ controls('pos.html', category, 'BEHAVIOR_VERIFIED',
 controls('pos.html', category, 'UI_RESULT_VERIFIED',
          ('#manage-categories-btn', '#reset-category-form', '#cancel-category-dialog'))
 
-pr = 'Enterprise purchase request: draft, submit, approval and reload'
+pr = 'Enterprise procurement: PR approval, PO approval and GRN posting persist'
 controls('enterprise-suite.html', pr, 'BEHAVIOR_VERIFIED',
-         ('#pr-form',))
+         ('#pr-form', '#pr-item', '#pr-qty', '#pr-price'))
+controls('enterprise-suite.html', pr, 'UI_RESULT_VERIFIED', ('#sinv-grn',))
 
 # These stable static tab selectors are credited only when both project artifacts
 # explicitly record the panel visible; the controls inside remain unverified.
