@@ -57,6 +57,33 @@ for(const [file,marker] of [
     fs.writeFileSync(`artifacts/browser-entry-${info.project.name}-${name}.json`,JSON.stringify({page:file,assertion:'entrypoint rendered; no browser exception',pass:true,scope:'Navigation only; control behavior and live endpoints not verified'}));
   });
 }
+test('Property setup: save, refresh, persisted reload and restore',async({page},info)=>{
+  await page.goto('/property-setup.html');
+  const name=page.locator('#propertyName');
+  await expect(name).toHaveValue(/.+/);
+  const original=await name.inputValue();
+  const uatName=`UAT property ${info.project.name} ${Date.now()}`;
+  const save=async value=>{
+    await name.fill(value);
+    const posted=page.waitForResponse(r=>r.url().includes('action=property-setup')&&r.url().includes('command=save')&&r.request().method()==='POST');
+    await page.locator('#save').click();
+    const response=await posted;
+    expect(response.status()).toBe(200);
+    expect((await response.json()).success).toBe(true);
+    await expect(name).toHaveValue(value);
+  };
+  await save(uatName);
+  await page.reload();
+  await expect(name).toHaveValue(uatName);
+  const refreshed=page.waitForResponse(r=>r.url().includes('action=property-setup')&&r.url().includes('command=status'));
+  await page.locator('#refresh').click();
+  expect((await refreshed).status()).toBe(200);
+  await expect(name).toHaveValue(uatName);
+  await save(original);
+  await page.reload();
+  await expect(name).toHaveValue(original);
+  fs.writeFileSync(`artifacts/browser-setup-${info.project.name}.json`,JSON.stringify({test:'property settings save, refresh, persisted reload and restore',pass:true,scope:'Property name only; finalize and other setup controls not claimed'}));
+});
 test('Enterprise purchase request: draft, submit, approval and reload',async({page,request},info)=>{
   await page.goto('/enterprise-suite.html');await expect(page.locator('#loading')).toBeHidden();
   await page.locator('[data-tab="ap"]').click();
