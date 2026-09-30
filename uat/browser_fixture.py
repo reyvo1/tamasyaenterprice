@@ -23,6 +23,8 @@ try:
       '--pid-file='+str(tmp/'mysql.pid'),'--port=23384','--bind-address=127.0.0.1','--mysqlx=OFF',
       '--skip-log-bin','--secure-file-priv='+str(tmp),'--log-error='+str(tmp/'mysql.log')]);ready(23384)
     e=json.loads((growth/'environment.json').read_text());e['TELEGRAM_SIMULATION_ENABLED']='1'
+    outbox=run/'uat-private-outbox';outbox.mkdir(mode=0o700,exist_ok=True)
+    e['TAMASYA_HYBRID_OUTBOX_DIR']=str(outbox)
     # Only a dedicated local fixture; no bot token and no live outbound transport.
     start(['php','-S','127.0.0.1:28189','-t',str(growth/'site')],{**os.environ,**e});ready(28189)
     testenv={**os.environ,'TAMASYA_UAT_FIXTURE':str(growth),'TAMASYA_UAT_RUN':str(run)}
